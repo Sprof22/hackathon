@@ -28,16 +28,16 @@ export class Meeting {
 export class ActionItem {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @ManyToOne(() => Meeting, meeting => meeting.actionItems, { onDelete:"CASCADE", eager:true }) meeting!: Meeting;
-  @Column({ nullable:true }) ownerUserId!: string | null;
+  @Column({ type:"uuid", nullable:true }) ownerUserId!: string | null;
   @Column() ownerName!: string;
-  @Column({ nullable:true }) ownerEmail!: string | null;
+  @Column({ type:"text", nullable:true }) ownerEmail!: string | null;
   @Column({ type:"text" }) task!: string;
   @Column({ type:"timestamptz", nullable:true }) deadline!: Date | null;
   @Column({ type:"text" }) sourceQuote!: string;
   @Column({ type:"enum", enum:ItemStatus, default:ItemStatus.OPEN }) status!: ItemStatus;
   @Column({ type:"float", nullable:true }) statusConfidence!: number | null;
   @Column({ default:false }) autoClosed!: boolean;
-  @Column({ nullable:true }) lastCheckedMeetingId!: string | null;
+  @Column({ type:"uuid", nullable:true }) lastCheckedMeetingId!: string | null;
   @Column({ default:0 }) silentMeetingCount!: number;
   @CreateDateColumn() createdAt!: Date;
   @Column({ type:"timestamptz", nullable:true }) resolvedAt!: Date | null;
@@ -64,7 +64,7 @@ export class Reminder {
   @Column({ type:"text" }) subject!: string;
   @Column({ type:"text" }) emailBody!: string;
   @Column({ default:false }) approved!: boolean;
-  @Column({ nullable:true }) approvedBy!: string | null;
+  @Column({ type:"uuid", nullable:true }) approvedBy!: string | null;
   @Column({ type:"timestamptz", nullable:true }) sentAt!: Date | null;
   @CreateDateColumn() createdAt!: Date;
 }
@@ -72,8 +72,8 @@ export class Reminder {
 @Entity("qa_notifications")
 export class QaNotification {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @Column({ nullable:true }) qaUserId!: string | null;
-  @Column() kind!: "auto_close_digest" | "stale_alert" | "needs_review_alert";
+  @Column({ type:"uuid", nullable:true }) qaUserId!: string | null;
+  @Column({ type:"varchar" }) kind!: "auto_close_digest" | "stale_alert" | "needs_review_alert";
   @Column({ type:"jsonb" }) payload!: Record<string, unknown>;
   @Column({ type:"timestamptz", nullable:true }) sentAt!: Date | null;
   @Column({ default:false }) read!: boolean;
@@ -83,11 +83,11 @@ export class QaNotification {
 @Entity("notification_deliveries")
 export class NotificationDelivery {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @Column() channel!: "email";
+  @Column({ type:"varchar" }) channel!: "email";
   @Column() recipient!: string;
   @Column() subject!: string;
   @Column({ type:"text" }) body!: string;
-  @Column() status!: "captured" | "sent" | "failed";
+  @Column({ type:"varchar" }) status!: "captured" | "sent" | "failed";
   @Column({ type:"text", nullable:true }) error!: string | null;
   @CreateDateColumn() createdAt!: Date;
 }
