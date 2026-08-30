@@ -1,0 +1,2 @@
+Sarah: I finished the checkout retry fix and it is now shipped.
+Marcus said the onboarding work is moving along, but did not claim it was complete.

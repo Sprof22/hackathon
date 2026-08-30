@@ -1,0 +1,3 @@
+Sarah: I'll ship the checkout retry fix by August 28.
+Marcus: I'll publish the onboarding brief by September 2.
+The team discussed customer feedback and next quarter planning.
