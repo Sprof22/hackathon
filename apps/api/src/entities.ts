@@ -1,11 +1,21 @@
-import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 export enum Role { OWNER="owner", QA="qa", MANAGER="manager" }
 export enum ItemStatus { OPEN="open", DONE="done", BLOCKED="blocked", NEEDS_REVIEW="needs_review", STALE="stale" }
 
+@Entity("organizations")
+export class Organization {
+  @PrimaryGeneratedColumn("uuid") id!: string;
+  @Column() name!: string;
+  @Column({ unique:true }) slug!: string;
+  @CreateDateColumn() createdAt!: Date;
+}
+
 @Entity("users")
 export class User {
   @PrimaryGeneratedColumn("uuid") id!: string;
+  @Index("IDX_users_organization")
+  @Column({ type:"uuid", nullable:true }) organizationId!: string;
   @Column() name!: string;
   @Column({ unique:true }) email!: string;
   @Column({ select:false }) passwordHash!: string;
@@ -16,6 +26,8 @@ export class User {
 @Entity("meetings")
 export class Meeting {
   @PrimaryGeneratedColumn("uuid") id!: string;
+  @Index("IDX_meetings_organization")
+  @Column({ type:"uuid", nullable:true }) organizationId!: string;
   @Column() title!: string;
   @Column({ type:"timestamptz" }) meetingDate!: Date;
   @Column({ type:"text" }) transcript!: string;
@@ -27,6 +39,8 @@ export class Meeting {
 @Entity("action_items")
 export class ActionItem {
   @PrimaryGeneratedColumn("uuid") id!: string;
+  @Index("IDX_action_items_organization")
+  @Column({ type:"uuid", nullable:true }) organizationId!: string;
   @ManyToOne(() => Meeting, meeting => meeting.actionItems, { onDelete:"CASCADE", eager:true }) meeting!: Meeting;
   @Column({ type:"uuid", nullable:true }) ownerUserId!: string | null;
   @Column() ownerName!: string;
@@ -46,6 +60,8 @@ export class ActionItem {
 @Entity("status_events")
 export class StatusEvent {
   @PrimaryGeneratedColumn("uuid") id!: string;
+  @Index("IDX_status_events_organization")
+  @Column({ type:"uuid", nullable:true }) organizationId!: string;
   @Column() actionItemId!: string;
   @Column() meetingId!: string;
   @Column({ type:"enum", enum:ItemStatus }) previousStatus!: ItemStatus;
@@ -59,6 +75,8 @@ export class StatusEvent {
 @Entity("reminders")
 export class Reminder {
   @PrimaryGeneratedColumn("uuid") id!: string;
+  @Index("IDX_reminders_organization")
+  @Column({ type:"uuid", nullable:true }) organizationId!: string;
   @Column() actionItemId!: string;
   @Column() recipientEmail!: string;
   @Column({ type:"text" }) subject!: string;
@@ -72,6 +90,8 @@ export class Reminder {
 @Entity("qa_notifications")
 export class QaNotification {
   @PrimaryGeneratedColumn("uuid") id!: string;
+  @Index("IDX_qa_notifications_organization")
+  @Column({ type:"uuid", nullable:true }) organizationId!: string;
   @Column({ type:"uuid", nullable:true }) qaUserId!: string | null;
   @Column({ type:"varchar" }) kind!: "auto_close_digest" | "stale_alert" | "needs_review_alert";
   @Column({ type:"jsonb" }) payload!: Record<string, unknown>;
@@ -83,6 +103,8 @@ export class QaNotification {
 @Entity("notification_deliveries")
 export class NotificationDelivery {
   @PrimaryGeneratedColumn("uuid") id!: string;
+  @Index("IDX_notification_deliveries_organization")
+  @Column({ type:"uuid", nullable:true }) organizationId!: string;
   @Column({ type:"varchar" }) channel!: "email";
   @Column() recipient!: string;
   @Column() subject!: string;

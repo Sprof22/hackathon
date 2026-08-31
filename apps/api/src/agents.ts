@@ -43,8 +43,8 @@ export class ExtractionService {
 @Injectable()
 export class VerificationService {
   constructor(@InjectRepository(ActionItem) private items:Repository<ActionItem>, @InjectRepository(StatusEvent) private events:Repository<StatusEvent>, @InjectRepository(QaNotification) private qa:Repository<QaNotification>, private config:ConfigService) {}
-  async verify(meeting:Meeting) {
-    const open = await this.items.find({ where:{ status:In([ItemStatus.OPEN,ItemStatus.BLOCKED,ItemStatus.STALE]) } });
+  async verify(meeting:Meeting,organizationId:string) {
+    const open = await this.items.find({ where:{organizationId,status:In([ItemStatus.OPEN,ItemStatus.BLOCKED,ItemStatus.STALE])} });
     const results = [];
     for (const item of open.filter(v=>v.meeting.id !== meeting.id)) {
       const verdict = this.classify(item,meeting.transcript);
@@ -59,9 +59,9 @@ export class VerificationService {
       else item.status=ItemStatus.OPEN;
       item.statusConfidence=verdict.confidence;
       await this.items.save(item);
-      await this.events.save(this.events.create({ actionItemId:item.id, meetingId:meeting.id, previousStatus:previous, newStatus:item.status, confidence:verdict.confidence, evidenceQuote:verdict.evidenceQuote, autoApplied:item.autoClosed && item.status===ItemStatus.DONE }));
-      if ([ItemStatus.NEEDS_REVIEW,ItemStatus.STALE].includes(item.status)) await this.qa.save(this.qa.create({ kind:item.status===ItemStatus.STALE?"stale_alert":"needs_review_alert",payload:{actionItemId:item.id,task:item.task,owner:item.ownerName,evidence:verdict.evidenceQuote} }));
-      if (item.autoClosed && item.status===ItemStatus.DONE) await this.qa.save(this.qa.create({ kind:"auto_close_digest",payload:{actionItemId:item.id,task:item.task,owner:item.ownerName,evidence:verdict.evidenceQuote,confidence:verdict.confidence} }));
+      await this.events.save(this.events.create({organizationId,actionItemId:item.id,meetingId:meeting.id,previousStatus:previous,newStatus:item.status,confidence:verdict.confidence,evidenceQuote:verdict.evidenceQuote,autoApplied:item.autoClosed&&item.status===ItemStatus.DONE}));
+      if([ItemStatus.NEEDS_REVIEW,ItemStatus.STALE].includes(item.status)) await this.qa.save(this.qa.create({organizationId,kind:item.status===ItemStatus.STALE?"stale_alert":"needs_review_alert",payload:{actionItemId:item.id,task:item.task,owner:item.ownerName,evidence:verdict.evidenceQuote}}));
+      if(item.autoClosed&&item.status===ItemStatus.DONE) await this.qa.save(this.qa.create({organizationId,kind:"auto_close_digest",payload:{actionItemId:item.id,task:item.task,owner:item.ownerName,evidence:verdict.evidenceQuote,confidence:verdict.confidence}}));
       results.push({itemId:item.id,...verdict,appliedStatus:item.status});
     }
     return results;
@@ -74,5 +74,5 @@ export class VerificationService {
 @Injectable()
 export class ReminderService {
   constructor(@InjectRepository(Reminder) private reminders:Repository<Reminder>, @InjectRepository(ActionItem) private items:Repository<ActionItem>) {}
-  async draft(actionItemId:string) { const item=await this.items.findOneByOrFail({id:actionItemId}); if(!item.ownerEmail) throw new Error("Add the owner's email before drafting a reminder"); return this.reminders.save(this.reminders.create({ actionItemId:item.id,recipientEmail:item.ownerEmail,subject:`Quick check-in: ${item.task}`,emailBody:`Hi ${item.ownerName},\n\nA quick check-in on “${item.task}.” The original commitment was: “${item.sourceQuote}”\n\nCould you share whether this is done, in progress, or blocked?\n\nThanks,\nLoopClose` })); }
+  async draft(actionItemId:string,organizationId:string) { const item=await this.items.findOneByOrFail({id:actionItemId,organizationId});if(!item.ownerEmail)throw new Error("Add the owner's email before drafting a reminder");return this.reminders.save(this.reminders.create({organizationId,actionItemId:item.id,recipientEmail:item.ownerEmail,subject:`Quick check-in: ${item.task}`,emailBody:`Hi ${item.ownerName},\n\nA quick check-in on “${item.task}.” The original commitment was: “${item.sourceQuote}”\n\nCould you share whether this is done, in progress, or blocked?\n\nThanks,\nLoopClose`})); }
 }

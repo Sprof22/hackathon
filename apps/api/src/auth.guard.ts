@@ -1,9 +1,12 @@
-import { CanActivate, ExecutionContext, Injectable, SetMetadata, UnauthorizedException } from "@nestjs/common";
+import { CanActivate, createParamDecorator, ExecutionContext, Injectable, SetMetadata, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
+import { Role } from "./entities";
 
 export const IS_PUBLIC_KEY="isPublic";
 export const Public=()=>SetMetadata(IS_PUBLIC_KEY,true);
+export type AuthenticatedUser={sub:string;email:string;role:Role;organizationId:string};
+export const CurrentUser=createParamDecorator((_data:unknown,context:ExecutionContext)=>context.switchToHttp().getRequest<{user:AuthenticatedUser}>().user);
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -13,6 +16,6 @@ export class JwtAuthGuard implements CanActivate {
     const request=context.switchToHttp().getRequest();
     const [type,token]=(request.headers.authorization??"").split(" ");
     if(type!=="Bearer"||!token) throw new UnauthorizedException("Sign in required");
-    try { request.user=this.jwt.verify(token); return true; } catch { throw new UnauthorizedException("Session expired or invalid"); }
+    try { const user=this.jwt.verify<AuthenticatedUser>(token);if(!user.organizationId) throw new Error("Missing organization");request.user=user;return true; } catch { throw new UnauthorizedException("Session expired or invalid"); }
   }
 }

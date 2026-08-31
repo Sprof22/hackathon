@@ -7,6 +7,7 @@ LoopClose turns meeting commitments into accountable, verified outcomes. It extr
 - Professional dashboard with meeting ingestion, QA review, and approval screens
 - NestJS API with PostgreSQL/Neon persistence through TypeORM
 - Email/password accounts with bcrypt password hashing and signed JWT sessions
+- Organization workspaces with tenant-scoped data access across every workflow
 - Free rules engine by default, with optional local Ollama structured extraction
 - Evidence-required verification with an `0.86` auto-close threshold
 - QA audit records for autonomous closes, stale items, and ambiguous updates
@@ -16,7 +17,7 @@ LoopClose turns meeting commitments into accountable, verified outcomes. It extr
 
 ## Architecture
 
-The standard Next.js web experience is at the repository root. The NestJS API lives in `apps/api`. Neon is the source of truth for meetings, users, action items, status history, reminders, QA alerts, and notification delivery logs.
+The standard Next.js web experience is at the repository root. The NestJS API lives in `apps/api`. Neon is the source of truth for organizations, meetings, users, action items, status history, reminders, QA alerts, and notification delivery logs. Every business record is scoped to the authenticated user's organization.
 
 ```text
 Transcript → verify existing items → extract new commitments → Neon
