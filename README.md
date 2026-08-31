@@ -16,7 +16,7 @@ LoopClose turns meeting commitments into accountable, verified outcomes. It extr
 
 ## Architecture
 
-The web experience is at the repository root. The API lives in `apps/api`. Neon is the source of truth for meetings, users, action items, status history, reminders, QA alerts, and notification delivery logs.
+The standard Next.js web experience is at the repository root. The NestJS API lives in `apps/api`. Neon is the source of truth for meetings, users, action items, status history, reminders, QA alerts, and notification delivery logs.
 
 ```text
 Transcript → verify existing items → extract new commitments → Neon
@@ -36,4 +36,4 @@ An item can only close autonomously when its confidence is at least `0.86` and a
 
 ## Original work and dependencies
 
-The workflow, confidence gate, verification heuristics, persistence model, QA audit loop, approval flow, synthetic evaluation data, and interface are original to this project. NestJS, TypeORM, Vinext/React, PostgreSQL, bcrypt, Nodemailer, and optional Ollama are off-the-shelf dependencies.
+The workflow, confidence gate, verification heuristics, persistence model, QA audit loop, approval flow, synthetic evaluation data, and interface are original to this project. Next.js, React, NestJS, TypeORM, PostgreSQL, bcrypt, Nodemailer, and optional Ollama are off-the-shelf dependencies.
