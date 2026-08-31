@@ -10,10 +10,23 @@ export const metadata: Metadata = {
   title: "LoopClose — Meeting follow-through",
   description: "Turn meeting commitments into accountable, verified outcomes.",
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
-  openGraph: { title:"LoopClose — Meeting follow-through", description:"Turn meeting commitments into verified outcomes.", images:["/og.png"] },
-  twitter: { card:"summary_large_image", title:"LoopClose — Meeting follow-through", description:"Turn meeting commitments into verified outcomes.", images:["/og.png"] },
+  openGraph: {
+    title: "LoopClose — Meeting follow-through",
+    description: "Turn meeting commitments into verified outcomes.",
+    images: ["/og.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LoopClose — Meeting follow-through",
+    description: "Turn meeting commitments into verified outcomes.",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body></html>;
+  return (
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
+    </html>
+  );
 }

@@ -1,7 +1,25 @@
 {
   "series": [
-    {"id":"series-1","items":[{"task":"ship the checkout retry fix","owner":"Sarah","outcome":"done"},{"task":"publish the onboarding brief","owner":"Marcus","outcome":"open"}]},
-    {"id":"series-2","items":[{"task":"confirm the analytics event names","owner":"Priya","outcome":"blocked"},{"task":"update the enterprise pricing page","owner":"Jon","outcome":"done"}]},
-    {"id":"series-3","items":[{"task":"finalize the pricing model","owner":"Amina","outcome":"needs_review"},{"task":"prepare the launch checklist","owner":"Diego","outcome":"open"}]}
+    {
+      "id": "series-1",
+      "items": [
+        { "task": "ship the checkout retry fix", "owner": "Sarah", "outcome": "done" },
+        { "task": "publish the onboarding brief", "owner": "Marcus", "outcome": "open" }
+      ]
+    },
+    {
+      "id": "series-2",
+      "items": [
+        { "task": "confirm the analytics event names", "owner": "Priya", "outcome": "blocked" },
+        { "task": "update the enterprise pricing page", "owner": "Jon", "outcome": "done" }
+      ]
+    },
+    {
+      "id": "series-3",
+      "items": [
+        { "task": "finalize the pricing model", "owner": "Amina", "outcome": "needs_review" },
+        { "task": "prepare the launch checklist", "owner": "Diego", "outcome": "open" }
+      ]
+    }
   ]
 }

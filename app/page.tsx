@@ -4,33 +4,366 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "./lib/api";
 
 type ItemStatus = "open" | "done" | "blocked" | "needs_review" | "stale";
-type ActionItem = { id:string; task:string; ownerName:string; deadline:string|null; sourceQuote:string; status:ItemStatus; statusConfidence:number|null; autoClosed:boolean; createdAt:string; resolvedAt:string|null };
-type QaAlert = { id:string; kind:string; payload:{task?:string;owner?:string;evidence?:string;confidence?:number}; createdAt:string };
-type Dashboard = { items:ActionItem[]; meetings:number; qa:QaAlert[]; metrics:{open:number;attention:number;closed:number} };
-type SessionUser = { name?:string; email?:string; role?:string };
-type Organization = { id:string; name:string; slug:string };
+type ActionItem = {
+  id: string;
+  task: string;
+  ownerName: string;
+  deadline: string | null;
+  sourceQuote: string;
+  status: ItemStatus;
+  statusConfidence: number | null;
+  autoClosed: boolean;
+  createdAt: string;
+  resolvedAt: string | null;
+};
+type QaAlert = {
+  id: string;
+  kind: string;
+  payload: { task?: string; owner?: string; evidence?: string; confidence?: number };
+  createdAt: string;
+};
+type Dashboard = {
+  items: ActionItem[];
+  meetings: number;
+  qa: QaAlert[];
+  metrics: { open: number; attention: number; closed: number };
+};
+type SessionUser = { name?: string; email?: string; role?: string };
+type Organization = { id: string; name: string; slug: string };
 
-const statusLabel:Record<ItemStatus,string>={open:"Open",done:"Done",blocked:"Blocked",needs_review:"In review",stale:"Stale"};
-function tone(status:ItemStatus){return status==="needs_review"||status==="blocked"?"review":status;}
-function dueLabel(value:string|null){if(!value)return "No date";const date=new Date(value);const today=new Date();if(date.toDateString()===today.toDateString())return "Today";return new Intl.DateTimeFormat("en",{month:"short",day:"numeric"}).format(date);}
-function relativeTime(value:string){const minutes=Math.max(0,Math.round((Date.now()-new Date(value).getTime())/60000));if(minutes<1)return "Just now";if(minutes<60)return `${minutes} min ago`;const hours=Math.round(minutes/60);if(hours<24)return `${hours} hr ago`;const days=Math.round(hours/24);return `${days} day${days===1?"":"s"} ago`;}
-function readSessionUser():SessionUser{try{const stored=localStorage.getItem("loopclose_user");if(stored)return JSON.parse(stored) as SessionUser;const token=localStorage.getItem("loopclose_token");if(!token)return {};return JSON.parse(atob(token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))) as SessionUser;}catch{return {};}}
+const statusLabel: Record<ItemStatus, string> = {
+  open: "Open",
+  done: "Done",
+  blocked: "Blocked",
+  needs_review: "In review",
+  stale: "Stale",
+};
+function tone(status: ItemStatus) {
+  return status === "needs_review" || status === "blocked" ? "review" : status;
+}
+function dueLabel(value: string | null) {
+  if (!value) return "No date";
+  const date = new Date(value);
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) return "Today";
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
+}
+function relativeTime(value: string) {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+function readSessionUser(): SessionUser {
+  try {
+    const stored = localStorage.getItem("loopclose_user");
+    if (stored) return JSON.parse(stored) as SessionUser;
+    const token = localStorage.getItem("loopclose_token");
+    if (!token) return {};
+    return JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+    ) as SessionUser;
+  } catch {
+    return {};
+  }
+}
 
-export default function Home(){
-  const [dashboard,setDashboard]=useState<Dashboard|null>(null);const [organization,setOrganization]=useState<Organization|null>(null);const [user,setUser]=useState<SessionUser>({});const [query,setQuery]=useState("");const [error,setError]=useState("");
-  useEffect(()=>{if(!localStorage.getItem("loopclose_token")){location.replace("/login");return;}setUser(readSessionUser());Promise.all([api<Dashboard>("/dashboard"),api<Organization>("/organization")]).then(([data,workspace])=>{setDashboard(data);setOrganization(workspace);}).catch((reason:unknown)=>{const message=reason instanceof Error?reason.message:"Could not load live data";if(/sign in|session|unauthorized/i.test(message)){localStorage.removeItem("loopclose_token");localStorage.removeItem("loopclose_user");location.replace("/login");return;}setError(message);});},[]);
-  const items=useMemo(()=>{const all=dashboard?.items??[];const needle=query.trim().toLowerCase();if(!needle)return all.slice(0,8);return all.filter(item=>`${item.task} ${item.ownerName} ${item.status}`.toLowerCase().includes(needle)).slice(0,8);},[dashboard,query]);
-  const activity=dashboard?.items.find(item=>item.autoClosed||item.status==="done");const firstName=user.name?.split(" ")[0]||user.email?.split("@")[0]||"there";const initials=(user.name||user.email||"LC").split(/[\s@.]+/).slice(0,2).map(value=>value[0]?.toUpperCase()).join("");const date=new Intl.DateTimeFormat("en",{weekday:"long",day:"numeric",month:"long"}).format(new Date());
-  function signOut(){localStorage.removeItem("loopclose_token");localStorage.removeItem("loopclose_user");location.href="/login";}
-  return <main className="app-shell">
-    <aside className="sidebar"><div className="brand"><span className="brand-mark">L</span><span>LoopClose</span></div><div className="workspace-label"><span>Workspace</span><strong>{organization?.name||"Loading…"}</strong></div><nav aria-label="Main navigation"><a className="nav-link active" href="/"><span>⌂</span> Overview</a><a className="nav-link" href="#items"><span>✓</span> Action items <b>{dashboard?.metrics.open??"—"}</b></a><a className="nav-link" href="/meetings/new"><span>▤</span> Meetings</a><a className="nav-link" href="/qa"><span>◎</span> QA review <i>{dashboard?.qa.length??0}</i></a><a className="nav-link" href="/approvals"><span>✉</span> Notifications</a></nav><div className="sidebar-bottom"><a className="nav-link" href="/organization"><span>⚙</span> Organization</a><div className="profile"><span className="avatar">{initials}</span><div><strong>{user.name||user.email||"LoopClose user"}</strong><small>{user.role||"Team manager"}</small></div><button className="profile-menu" onClick={signOut} aria-label="Sign out">↗</button></div></div></aside>
-    <section className="workspace"><header className="topbar"><div className="mobile-brand">LoopClose</div><label className="search"><span>⌕</span><input aria-label="Search action items" placeholder="Search action items, owners..." value={query} onChange={event=>setQuery(event.target.value)}/></label><div className="top-actions"><a className="icon-button button-link" href="/qa" aria-label="Notifications">♢{dashboard?.qa.length?<em/>:null}</a><a className="primary-button button-link" href="/meetings/new">＋ New meeting</a></div></header>
-      <div className="content"><div className="page-heading"><div><p className="eyebrow">{date}</p><h1>Good morning, {firstName}.</h1><p>Here’s what needs your attention across the team.</p></div><span className="live-badge"><i/> Live data</span></div>
-        {error?<div className="dashboard-notice error">Could not load the dashboard: {error}. <button onClick={()=>location.reload()}>Try again</button></div>:null}
-        <section className="metrics" aria-label="Live summary"><article><span className="metric-icon violet">✓</span><div><small>Open items</small><strong>{dashboard?.metrics.open??"—"}</strong><p>Active commitments</p></div></article><article><span className="metric-icon amber">!</span><div><small>Need attention</small><strong>{dashboard?.metrics.attention??"—"}</strong><p><b>Stale, blocked or ambiguous</b></p></div></article><article><span className="metric-icon green">↗</span><div><small>Closed items</small><strong>{dashboard?.metrics.closed??"—"}</strong><p>Verified outcomes</p></div></article><article><span className="metric-icon blue">◉</span><div><small>Meetings tracked</small><strong>{dashboard?.meetings??"—"}</strong><p>Processed by LoopClose</p></div></article></section>
-        <div className="main-grid"><section className="panel action-panel" id="items"><div className="panel-head"><div><h2>Action items</h2><p>Commitments from your processed meetings</p></div><span className="data-count">{dashboard?.items.length??0} total</span></div><div className="table-head"><span>Task</span><span>Owner</span><span>Due</span><span>Status</span></div>{!dashboard&&!error?<div className="dashboard-empty">Loading live action items…</div>:null}{dashboard&&items.length===0?<div className="dashboard-empty">{query?"No action items match your search.":"No action items yet. Process a meeting to create the first one."}</div>:null}{items.map(item=><div className="item-row" key={item.id}><div><span className={`status-dot ${tone(item.status)}`}/><strong>{item.task}</strong></div><div className="owner"><span>{item.ownerName.split(" ").map(name=>name[0]).slice(0,2).join("")}</span>{item.ownerName}</div><time dateTime={item.deadline??undefined}>{dueLabel(item.deadline)}</time><span className={`pill ${tone(item.status)}`}>{statusLabel[item.status]}</span></div>)}</section>
-          <aside className="panel attention-panel"><div className="panel-head"><div><h2>Needs attention</h2><p>Live QA signals awaiting review</p></div><span className="count">{dashboard?.qa.length??0}</span></div>{dashboard?.qa.slice(0,3).map(alert=><article className="alert-card" key={alert.id}><div className={`alert-icon ${alert.kind.includes("stale")?"overdue":""}`}>{alert.kind.includes("stale")?"!":"?"}</div><div><span className={`alert-type ${alert.kind.includes("stale")?"overdue-text":""}`}>{alert.kind.replaceAll("_"," ").toUpperCase()}</span><strong>{alert.payload.task||"Commitment needs review"}</strong><p>{alert.payload.evidence?`Evidence: “${alert.payload.evidence}”`:`${alert.payload.owner||"The owner"} has no clear completion evidence yet.`}</p><div><a className="text-action" href="/qa">Review evidence</a></div></div></article>)}{dashboard&&dashboard.qa.length===0?<div className="dashboard-empty compact">Nothing needs QA review.</div>:null}</aside></div>
-        <section className="activity"><div className="panel-head"><div><h2>Recent agent activity</h2><p>Autonomous decisions backed by meeting evidence</p></div><a href="/qa">View audit log →</a></div>{activity?<div className="activity-row"><span className="activity-icon">✓</span><div><strong>{activity.autoClosed?"Auto-closed":"Closed"} “{activity.task}”</strong><p>{activity.sourceQuote?`Source: “${activity.sourceQuote}”`:"Marked complete from meeting evidence."}</p></div>{activity.statusConfidence!=null?<span className="confidence">{Math.round(activity.statusConfidence*100)}% confidence</span>:<span/>}<time>{relativeTime(activity.resolvedAt||activity.createdAt)}</time></div>:<div className="dashboard-empty compact">No completed commitments yet.</div>}</section>
-      </div></section>
-  </main>;
+export default function Home() {
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [user, setUser] = useState<SessionUser>({});
+  const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!localStorage.getItem("loopclose_token")) {
+      location.replace("/login");
+      return;
+    }
+    setUser(readSessionUser());
+    Promise.all([api<Dashboard>("/dashboard"), api<Organization>("/organization")])
+      .then(([data, workspace]) => {
+        setDashboard(data);
+        setOrganization(workspace);
+      })
+      .catch((reason: unknown) => {
+        const message = reason instanceof Error ? reason.message : "Could not load live data";
+        if (/sign in|session|unauthorized/i.test(message)) {
+          localStorage.removeItem("loopclose_token");
+          localStorage.removeItem("loopclose_user");
+          location.replace("/login");
+          return;
+        }
+        setError(message);
+      });
+  }, []);
+  const items = useMemo(() => {
+    const all = dashboard?.items ?? [];
+    const needle = query.trim().toLowerCase();
+    if (!needle) return all.slice(0, 8);
+    return all
+      .filter((item) =>
+        `${item.task} ${item.ownerName} ${item.status}`.toLowerCase().includes(needle)
+      )
+      .slice(0, 8);
+  }, [dashboard, query]);
+  const activity = dashboard?.items.find((item) => item.autoClosed || item.status === "done");
+  const firstName = user.name?.split(" ")[0] || user.email?.split("@")[0] || "there";
+  const initials = (user.name || user.email || "LC")
+    .split(/[\s@.]+/)
+    .slice(0, 2)
+    .map((value) => value[0]?.toUpperCase())
+    .join("");
+  const date = new Intl.DateTimeFormat("en", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
+  function signOut() {
+    localStorage.removeItem("loopclose_token");
+    localStorage.removeItem("loopclose_user");
+    location.href = "/login";
+  }
+  return (
+    <main className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-mark">L</span>
+          <span>LoopClose</span>
+        </div>
+        <div className="workspace-label">
+          <span>Workspace</span>
+          <strong>{organization?.name || "Loading…"}</strong>
+        </div>
+        <nav aria-label="Main navigation">
+          <a className="nav-link active" href="/">
+            <span>⌂</span> Overview
+          </a>
+          <a className="nav-link" href="#items">
+            <span>✓</span> Action items <b>{dashboard?.metrics.open ?? "—"}</b>
+          </a>
+          <a className="nav-link" href="/meetings/new">
+            <span>▤</span> Meetings
+          </a>
+          <a className="nav-link" href="/qa">
+            <span>◎</span> QA review <i>{dashboard?.qa.length ?? 0}</i>
+          </a>
+          <a className="nav-link" href="/approvals">
+            <span>✉</span> Notifications
+          </a>
+        </nav>
+        <div className="sidebar-bottom">
+          <a className="nav-link" href="/organization">
+            <span>⚙</span> Organization
+          </a>
+          <div className="profile">
+            <span className="avatar">{initials}</span>
+            <div>
+              <strong>{user.name || user.email || "LoopClose user"}</strong>
+              <small>{user.role || "Team manager"}</small>
+            </div>
+            <button className="profile-menu" onClick={signOut} aria-label="Sign out">
+              ↗
+            </button>
+          </div>
+        </div>
+      </aside>
+      <section className="workspace">
+        <header className="topbar">
+          <div className="mobile-brand">LoopClose</div>
+          <label className="search">
+            <span>⌕</span>
+            <input
+              aria-label="Search action items"
+              placeholder="Search action items, owners..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <div className="top-actions">
+            <a className="icon-button button-link" href="/qa" aria-label="Notifications">
+              ♢{dashboard?.qa.length ? <em /> : null}
+            </a>
+            <a className="primary-button button-link" href="/meetings/new">
+              ＋ New meeting
+            </a>
+          </div>
+        </header>
+        <div className="content">
+          <div className="page-heading">
+            <div>
+              <p className="eyebrow">{date}</p>
+              <h1>Good morning, {firstName}.</h1>
+              <p>Here’s what needs your attention across the team.</p>
+            </div>
+            <span className="live-badge">
+              <i /> Live data
+            </span>
+          </div>
+          {error ? (
+            <div className="dashboard-notice error">
+              Could not load the dashboard: {error}.{" "}
+              <button onClick={() => location.reload()}>Try again</button>
+            </div>
+          ) : null}
+          <section className="metrics" aria-label="Live summary">
+            <article>
+              <span className="metric-icon violet">✓</span>
+              <div>
+                <small>Open items</small>
+                <strong>{dashboard?.metrics.open ?? "—"}</strong>
+                <p>Active commitments</p>
+              </div>
+            </article>
+            <article>
+              <span className="metric-icon amber">!</span>
+              <div>
+                <small>Need attention</small>
+                <strong>{dashboard?.metrics.attention ?? "—"}</strong>
+                <p>
+                  <b>Stale, blocked or ambiguous</b>
+                </p>
+              </div>
+            </article>
+            <article>
+              <span className="metric-icon green">↗</span>
+              <div>
+                <small>Closed items</small>
+                <strong>{dashboard?.metrics.closed ?? "—"}</strong>
+                <p>Verified outcomes</p>
+              </div>
+            </article>
+            <article>
+              <span className="metric-icon blue">◉</span>
+              <div>
+                <small>Meetings tracked</small>
+                <strong>{dashboard?.meetings ?? "—"}</strong>
+                <p>Processed by LoopClose</p>
+              </div>
+            </article>
+          </section>
+          <div className="main-grid">
+            <section className="panel action-panel" id="items">
+              <div className="panel-head">
+                <div>
+                  <h2>Action items</h2>
+                  <p>Commitments from your processed meetings</p>
+                </div>
+                <span className="data-count">{dashboard?.items.length ?? 0} total</span>
+              </div>
+              <div className="table-head">
+                <span>Task</span>
+                <span>Owner</span>
+                <span>Due</span>
+                <span>Status</span>
+              </div>
+              {!dashboard && !error ? (
+                <div className="dashboard-empty">Loading live action items…</div>
+              ) : null}
+              {dashboard && items.length === 0 ? (
+                <div className="dashboard-empty">
+                  {query
+                    ? "No action items match your search."
+                    : "No action items yet. Process a meeting to create the first one."}
+                </div>
+              ) : null}
+              {items.map((item) => (
+                <div className="item-row" key={item.id}>
+                  <div>
+                    <span className={`status-dot ${tone(item.status)}`} />
+                    <strong>{item.task}</strong>
+                  </div>
+                  <div className="owner">
+                    <span>
+                      {item.ownerName
+                        .split(" ")
+                        .map((name) => name[0])
+                        .slice(0, 2)
+                        .join("")}
+                    </span>
+                    {item.ownerName}
+                  </div>
+                  <time dateTime={item.deadline ?? undefined}>{dueLabel(item.deadline)}</time>
+                  <span className={`pill ${tone(item.status)}`}>{statusLabel[item.status]}</span>
+                </div>
+              ))}
+            </section>
+            <aside className="panel attention-panel">
+              <div className="panel-head">
+                <div>
+                  <h2>Needs attention</h2>
+                  <p>Live QA signals awaiting review</p>
+                </div>
+                <span className="count">{dashboard?.qa.length ?? 0}</span>
+              </div>
+              {dashboard?.qa.slice(0, 3).map((alert) => (
+                <article className="alert-card" key={alert.id}>
+                  <div className={`alert-icon ${alert.kind.includes("stale") ? "overdue" : ""}`}>
+                    {alert.kind.includes("stale") ? "!" : "?"}
+                  </div>
+                  <div>
+                    <span
+                      className={`alert-type ${alert.kind.includes("stale") ? "overdue-text" : ""}`}
+                    >
+                      {alert.kind.replaceAll("_", " ").toUpperCase()}
+                    </span>
+                    <strong>{alert.payload.task || "Commitment needs review"}</strong>
+                    <p>
+                      {alert.payload.evidence
+                        ? `Evidence: “${alert.payload.evidence}”`
+                        : `${alert.payload.owner || "The owner"} has no clear completion evidence yet.`}
+                    </p>
+                    <div>
+                      <a className="text-action" href="/qa">
+                        Review evidence
+                      </a>
+                    </div>
+                  </div>
+                </article>
+              ))}
+              {dashboard && dashboard.qa.length === 0 ? (
+                <div className="dashboard-empty compact">Nothing needs QA review.</div>
+              ) : null}
+            </aside>
+          </div>
+          <section className="activity">
+            <div className="panel-head">
+              <div>
+                <h2>Recent agent activity</h2>
+                <p>Autonomous decisions backed by meeting evidence</p>
+              </div>
+              <a href="/qa">View audit log →</a>
+            </div>
+            {activity ? (
+              <div className="activity-row">
+                <span className="activity-icon">✓</span>
+                <div>
+                  <strong>
+                    {activity.autoClosed ? "Auto-closed" : "Closed"} “{activity.task}”
+                  </strong>
+                  <p>
+                    {activity.sourceQuote
+                      ? `Source: “${activity.sourceQuote}”`
+                      : "Marked complete from meeting evidence."}
+                  </p>
+                </div>
+                {activity.statusConfidence != null ? (
+                  <span className="confidence">
+                    {Math.round(activity.statusConfidence * 100)}% confidence
+                  </span>
+                ) : (
+                  <span />
+                )}
+                <time>{relativeTime(activity.resolvedAt || activity.createdAt)}</time>
+              </div>
+            ) : (
+              <div className="dashboard-empty compact">No completed commitments yet.</div>
+            )}
+          </section>
+        </div>
+      </section>
+    </main>
+  );
 }

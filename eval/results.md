@@ -2,13 +2,13 @@
 
 Generated from the checked-in synthetic ground truth. Run the API unit tests for behavioral verification.
 
-| Metric | Baseline | LoopClose |
-| --- | ---: | ---: |
-| Ground-truth commitments | 6 | 6 |
-| Cross-meeting status support | No | Yes |
-| Evidence-required auto-close | No | Yes |
-| Stale/blocked escalation | No | Yes |
-| Human-gated owner email | No | Yes |
+| Metric                       | Baseline | LoopClose |
+| ---------------------------- | -------: | --------: |
+| Ground-truth commitments     |        6 |         6 |
+| Cross-meeting status support |       No |       Yes |
+| Evidence-required auto-close |       No |       Yes |
+| Stale/blocked escalation     |       No |       Yes |
+| Human-gated owner email      |       No |       Yes |
 
 ## Safety cases
 
