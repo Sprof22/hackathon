@@ -20,6 +20,7 @@ import { NotificationService } from "./notifications";
 import { JwtAuthGuard } from "./auth.guard";
 import { OrganizationBootstrapService, OrganizationController } from "./organizations";
 import { AddOrganizationTenancy1788165000000 } from "./organization.migration";
+import { AddDeliveryContext1788169000000 } from "./delivery-context.migration";
 
 const entities = [
   Organization,
@@ -40,7 +41,7 @@ const entities = [
         type: "postgres",
         url: config.getOrThrow("DATABASE_URL"),
         entities,
-        migrations: [AddOrganizationTenancy1788165000000],
+        migrations: [AddOrganizationTenancy1788165000000, AddDeliveryContext1788169000000],
         migrationsRun: true,
         synchronize: config.get("DB_SYNCHRONIZE", "false") === "true",
         ssl: { rejectUnauthorized: false },

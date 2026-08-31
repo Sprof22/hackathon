@@ -12,6 +12,7 @@ LoopClose turns meeting commitments into accountable, verified outcomes. It extr
 - Evidence-required verification with an `0.86` auto-close threshold
 - QA audit records for autonomous closes, stale items, and ambiguous updates
 - Approval-gated reminder emails
+- Action-item detail workflow with owner contact, reminder approval, and delivery status
 - SMTP delivery with database capture mode for safe demos
 - Synthetic evaluation fixtures and deterministic unit tests
 

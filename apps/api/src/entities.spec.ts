@@ -27,6 +27,9 @@ describe("Postgres entity metadata", () => {
     const actionItem = source.getMetadata(ActionItem);
     expect(actionItem.findColumnWithPropertyName("ownerUserId")?.type).toBe("uuid");
     expect(actionItem.findColumnWithPropertyName("ownerEmail")?.type).toBe("text");
+    const delivery = source.getMetadata(NotificationDelivery);
+    expect(delivery.findColumnWithPropertyName("actionItemId")?.type).toBe("uuid");
+    expect(delivery.findColumnWithPropertyName("reminderId")?.type).toBe("uuid");
     for (const entity of entities.filter((value) => value !== Organization))
       expect(source.getMetadata(entity).findColumnWithPropertyName("organizationId")?.type).toBe(
         "uuid"

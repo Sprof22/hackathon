@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, ConflictException, Controller, Get, Param, Patch, Post } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { IsDateString, IsEmail, IsString, MinLength } from "class-validator";
 import { Repository } from "typeorm";
@@ -125,6 +125,17 @@ export class AppController {
     });
   }
 
+  @Get("action-items/:id")
+  async itemDetail(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    const organizationId = user.organizationId;
+    const [item, reminders, deliveries] = await Promise.all([
+      this.items.findOneByOrFail({ id, organizationId }),
+      this.reminders.find({ where: { actionItemId: id, organizationId }, order: { createdAt: "DESC" } }),
+      this.deliveries.find({ where: { actionItemId: id, organizationId }, order: { createdAt: "DESC" } }),
+    ]);
+    return { item, reminders, deliveries };
+  }
+
   @Patch("action-items/:id/owner-email")
   async ownerEmail(
     @CurrentUser() user: AuthenticatedUser,
@@ -153,13 +164,16 @@ export class AppController {
   async approve(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
     const organizationId = user.organizationId;
     const reminder = await this.reminders.findOneByOrFail({ id, organizationId });
+    if (reminder.approved) throw new ConflictException("This reminder has already been approved");
     const sent = await this.notifications.sendEmail(
       reminder.recipientEmail,
       reminder.subject,
       reminder.emailBody,
-      organizationId
+      organizationId,
+      { actionItemId: reminder.actionItemId, reminderId: reminder.id }
     );
     reminder.approved = true;
+    reminder.approvedBy = user.sub;
     reminder.sentAt = sent.status === "sent" ? new Date() : null;
     await this.reminders.save(reminder);
     return { reminder, delivery: sent };

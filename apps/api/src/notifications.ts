@@ -11,9 +11,17 @@ export class NotificationService {
     private config: ConfigService,
     @InjectRepository(NotificationDelivery) private deliveries: Repository<NotificationDelivery>
   ) {}
-  async sendEmail(to: string, subject: string, body: string, organizationId: string) {
+  async sendEmail(
+    to: string,
+    subject: string,
+    body: string,
+    organizationId: string,
+    context: { actionItemId?: string; reminderId?: string } = {}
+  ) {
     const delivery = this.deliveries.create({
       organizationId,
+      actionItemId: context.actionItemId ?? null,
+      reminderId: context.reminderId ?? null,
       channel: "email",
       recipient: to,
       subject,

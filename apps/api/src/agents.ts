@@ -190,6 +190,11 @@ export class ReminderService {
   async draft(actionItemId: string, organizationId: string) {
     const item = await this.items.findOneByOrFail({ id: actionItemId, organizationId });
     if (!item.ownerEmail) throw new Error("Add the owner's email before drafting a reminder");
+    const existing = await this.reminders.findOne({
+      where: { actionItemId, organizationId, approved: false },
+      order: { createdAt: "DESC" },
+    });
+    if (existing) return existing;
     return this.reminders.save(
       this.reminders.create({
         organizationId,

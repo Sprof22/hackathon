@@ -131,6 +131,12 @@ export class NotificationDelivery {
   @Index("IDX_notification_deliveries_organization")
   @Column({ type: "uuid", nullable: true })
   organizationId!: string;
+  @Index("IDX_notification_deliveries_action_item")
+  @Column({ type: "uuid", nullable: true })
+  actionItemId!: string | null;
+  @Index("IDX_notification_deliveries_reminder")
+  @Column({ type: "uuid", nullable: true })
+  reminderId!: string | null;
   @Column({ type: "varchar" }) channel!: "email";
   @Column() recipient!: string;
   @Column() subject!: string;

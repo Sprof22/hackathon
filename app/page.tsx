@@ -273,7 +273,7 @@ export default function Home() {
                 <div className="item-row" key={item.id}>
                   <div>
                     <span className={`status-dot ${tone(item.status)}`} />
-                    <strong>{item.task}</strong>
+                    <a className="item-link" href={`/action-items/${item.id}`}>{item.task}</a>
                   </div>
                   <div className="owner">
                     <span>
