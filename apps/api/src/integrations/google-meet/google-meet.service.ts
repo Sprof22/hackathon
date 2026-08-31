@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -10,7 +11,13 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+  randomUUID,
+} from "node:crypto";
 import { Repository } from "typeorm";
 import { Role } from "../../auth/entities/user.entity";
 import { AuthenticatedUser } from "../../common/auth/authenticated-user";
@@ -44,6 +51,26 @@ type Participant = {
   anonymousUser?: { displayName: string };
   phoneUser?: { displayName: string };
 };
+type GoogleRequestContext = {
+  operation: string;
+  endpoint: string;
+  organizationId: string;
+  referenceId: string;
+  correlationId?: string;
+  startedAt: number;
+};
+type GoogleErrorPayload = {
+  error?: {
+    code?: number;
+    message?: string;
+    status?: string;
+    details?: Array<{ reason?: string; domain?: string }>;
+  };
+};
+
+export function completedConferenceRecords(records: ConferenceRecord[]): ConferenceRecord[] {
+  return records.filter((record) => Boolean(record.endTime));
+}
 
 export function formatMeetTranscript(
   entries: TranscriptEntry[],
@@ -67,6 +94,8 @@ export function formatMeetTranscript(
 
 @Injectable()
 export class GoogleMeetService {
+  private readonly logger = new Logger(GoogleMeetService.name);
+
   constructor(
     @InjectRepository(GoogleMeetConnection)
     private connections: Repository<GoogleMeetConnection>,
@@ -124,18 +153,29 @@ export class GoogleMeetService {
     } catch {
       throw new UnauthorizedException("Google connection request expired. Please try again.");
     }
-    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: this.config.getOrThrow("GOOGLE_CLIENT_ID"),
-        client_secret: this.config.getOrThrow("GOOGLE_CLIENT_SECRET"),
-        redirect_uri: this.config.getOrThrow("GOOGLE_REDIRECT_URI"),
-        grant_type: "authorization_code",
-      }),
-    });
-    const token = await this.readGoogleResponse<GoogleTokenResponse>(tokenResponse);
+    const tokenContext: GoogleRequestContext = {
+      operation: "oauth.token.exchange",
+      endpoint: "/token",
+      organizationId: identity.organizationId,
+      referenceId: randomUUID(),
+      startedAt: Date.now(),
+    };
+    const tokenResponse = await this.googleFetch(
+      "https://oauth2.googleapis.com/token",
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: this.config.getOrThrow("GOOGLE_CLIENT_ID"),
+          client_secret: this.config.getOrThrow("GOOGLE_CLIENT_SECRET"),
+          redirect_uri: this.config.getOrThrow("GOOGLE_REDIRECT_URI"),
+          grant_type: "authorization_code",
+        }),
+      },
+      tokenContext
+    );
+    const token = await this.readGoogleResponse<GoogleTokenResponse>(tokenResponse, tokenContext);
     const existing = await this.connections.findOneBy({
       organizationId: identity.organizationId,
     });
@@ -173,6 +213,12 @@ export class GoogleMeetService {
   }
 
   async importLatest(user: AuthenticatedUser) {
+    const importReferenceId = randomUUID();
+    const importStartedAt = Date.now();
+    this.log("google_meet.import_started", {
+      referenceId: importReferenceId,
+      organizationId: user.organizationId,
+    });
     const connection = await this.connections.findOneBy({ organizationId: user.organizationId });
     if (!connection) throw new NotFoundException("Connect Google Meet before importing a meeting");
     const accessToken = await this.accessToken(connection);
@@ -180,15 +226,26 @@ export class GoogleMeetService {
       "conferenceRecords",
       "conferenceRecords",
       accessToken,
-      { pageSize: "10", filter: "end_time IS NOT NULL" }
+      { pageSize: "10" },
+      user.organizationId,
+      importReferenceId
     );
+    const completedRecords = completedConferenceRecords(records);
+    this.log("google_meet.conference_records_loaded", {
+      referenceId: importReferenceId,
+      organizationId: user.organizationId,
+      recordCount: records.length,
+      completedRecordCount: completedRecords.length,
+    });
     let selected: { record: ConferenceRecord; transcript: Transcript } | null = null;
-    for (const record of records) {
+    for (const record of completedRecords) {
       const transcripts = await this.googleGetPaged<Transcript>(
         `${record.name}/transcripts`,
         "transcripts",
         accessToken,
-        { pageSize: "10" }
+        { pageSize: "10" },
+        user.organizationId,
+        importReferenceId
       );
       const transcript = transcripts.find((value) => value.state === "FILE_GENERATED");
       if (transcript) {
@@ -207,13 +264,17 @@ export class GoogleMeetService {
         `${selected.transcript.name}/entries`,
         "transcriptEntries",
         accessToken,
-        { pageSize: "100" }
+        { pageSize: "100" },
+        user.organizationId,
+        importReferenceId
       ),
       this.googleGetPaged<Participant>(
         `${selected.record.name}/participants`,
         "participants",
         accessToken,
-        { pageSize: "250" }
+        { pageSize: "250" },
+        user.organizationId,
+        importReferenceId
       ),
     ]);
     const transcript = formatMeetTranscript(entries, participants);
@@ -232,6 +293,13 @@ export class GoogleMeetService {
     connection.lastImportedConferenceName = selected.record.name;
     connection.lastImportedAt = new Date();
     await this.connections.save(connection);
+    this.log("google_meet.import_completed", {
+      referenceId: importReferenceId,
+      organizationId: user.organizationId,
+      durationMs: Date.now() - importStartedAt,
+      speakerCount: participants.length,
+      transcriptEntryCount: entries.length,
+    });
     return {
       ...result,
       source: "google_meet",
@@ -246,17 +314,28 @@ export class GoogleMeetService {
       return tokens.accessToken;
     if (!tokens.refreshToken)
       throw new UnauthorizedException("Google Meet access expired. Please reconnect.");
-    const response = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        refresh_token: tokens.refreshToken,
-        client_id: this.config.getOrThrow("GOOGLE_CLIENT_ID"),
-        client_secret: this.config.getOrThrow("GOOGLE_CLIENT_SECRET"),
-        grant_type: "refresh_token",
-      }),
-    });
-    const token = await this.readGoogleResponse<GoogleTokenResponse>(response);
+    const tokenContext: GoogleRequestContext = {
+      operation: "oauth.token.refresh",
+      endpoint: "/token",
+      organizationId: connection.organizationId,
+      referenceId: randomUUID(),
+      startedAt: Date.now(),
+    };
+    const response = await this.googleFetch(
+      "https://oauth2.googleapis.com/token",
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          refresh_token: tokens.refreshToken,
+          client_id: this.config.getOrThrow("GOOGLE_CLIENT_ID"),
+          client_secret: this.config.getOrThrow("GOOGLE_CLIENT_SECRET"),
+          grant_type: "refresh_token",
+        }),
+      },
+      tokenContext
+    );
+    const token = await this.readGoogleResponse<GoogleTokenResponse>(response, tokenContext);
     connection.encryptedTokens = this.encrypt({
       accessToken: token.access_token,
       refreshToken: tokens.refreshToken,
@@ -270,7 +349,9 @@ export class GoogleMeetService {
     path: string,
     field: string,
     accessToken: string,
-    query: Record<string, string>
+    query: Record<string, string>,
+    organizationId: string,
+    correlationId: string
   ): Promise<T[]> {
     const results: T[] = [];
     let pageToken: string | undefined;
@@ -278,21 +359,98 @@ export class GoogleMeetService {
       const url = new URL(`${MEET_API}/${path}`);
       for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
       if (pageToken) url.searchParams.set("pageToken", pageToken);
-      const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } });
-      const payload = await this.readGoogleResponse<Record<string, unknown>>(response);
+      const context: GoogleRequestContext = {
+        operation: `meet.${field}.list`,
+        endpoint: this.redactGooglePath(url.pathname),
+        organizationId,
+        referenceId: randomUUID(),
+        correlationId,
+        startedAt: Date.now(),
+      };
+      const response = await this.googleFetch(
+        url,
+        { headers: { authorization: `Bearer ${accessToken}` } },
+        context
+      );
+      const payload = await this.readGoogleResponse<Record<string, unknown>>(response, context);
       results.push(...((payload[field] as T[] | undefined) ?? []));
       pageToken = payload.nextPageToken as string | undefined;
     } while (pageToken);
     return results;
   }
 
-  private async readGoogleResponse<T>(response: Response): Promise<T> {
-    const payload = (await response.json().catch(() => ({}))) as {
-      error?: { message?: string };
-    };
-    if (!response.ok)
-      throw new BadGatewayException(payload.error?.message ?? "Google Meet could not be reached");
+  private async googleFetch(
+    input: string | URL,
+    init: RequestInit,
+    context: GoogleRequestContext
+  ) {
+    try {
+      return await fetch(input, init);
+    } catch (error) {
+      this.error("google_api.network_failed", {
+        ...context,
+        startedAt: undefined,
+        durationMs: Date.now() - context.startedAt,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        errorMessage: error instanceof Error ? error.message : "Google request failed",
+      });
+      throw new BadGatewayException({
+        message: "Google Meet could not be reached",
+        error: "Google API network request failed",
+        referenceId: context.referenceId,
+      });
+    }
+  }
+
+  private async readGoogleResponse<T>(
+    response: Response,
+    context: GoogleRequestContext
+  ): Promise<T> {
+    const payload = (await response.json().catch(() => ({}))) as GoogleErrorPayload;
+    const durationMs = Date.now() - context.startedAt;
+    if (!response.ok) {
+      const googleError = payload.error;
+      this.error("google_api.request_failed", {
+        ...context,
+        startedAt: undefined,
+        durationMs,
+        upstreamStatus: response.status,
+        googleCode: googleError?.code ?? null,
+        googleStatus: googleError?.status ?? null,
+        googleMessage: googleError?.message ?? null,
+        googleReasons: googleError?.details
+          ?.map((detail) => detail.reason)
+          .filter((reason): reason is string => Boolean(reason)),
+      });
+      throw new BadGatewayException({
+        message: googleError?.message ?? "Google Meet could not be reached",
+        error: "Google API request failed",
+        referenceId: context.referenceId,
+        upstreamStatus: response.status,
+      });
+    }
+    this.log("google_api.request_completed", {
+      ...context,
+      startedAt: undefined,
+      durationMs,
+      upstreamStatus: response.status,
+    });
     return payload as T;
+  }
+
+  private redactGooglePath(path: string) {
+    return path
+      .replace(/conferenceRecords\/[^/]+/g, "conferenceRecords/{conferenceId}")
+      .replace(/transcripts\/[^/]+/g, "transcripts/{transcriptId}")
+      .replace(/participants\/[^/]+/g, "participants/{participantId}");
+  }
+
+  private log(event: string, fields: Record<string, unknown>) {
+    this.logger.log(JSON.stringify({ event, provider: "google", ...fields }));
+  }
+
+  private error(event: string, fields: Record<string, unknown>) {
+    this.logger.error(JSON.stringify({ event, provider: "google", ...fields }));
   }
 
   private assertConfigured() {
