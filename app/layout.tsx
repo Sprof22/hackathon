@@ -9,7 +9,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: "LoopClose — Meeting follow-through",
   description: "Turn meeting commitments into accountable, verified outcomes.",
-  icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+  icons: {
+    icon: [{ url: "/logo-mark.svg?v=2", type: "image/svg+xml", sizes: "any" }],
+    shortcut: [{ url: "/logo-mark.svg?v=2", type: "image/svg+xml" }],
+    apple: [{ url: "/logo-mark.svg?v=2", type: "image/svg+xml" }],
+  },
   openGraph: {
     title: "LoopClose — Meeting follow-through",
     description: "Turn meeting commitments into verified outcomes.",
