@@ -12,7 +12,8 @@
     "lint": "eslint . --ignore-pattern .next",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "eval": "node --experimental-strip-types eval/run_eval.ts"
+    "baseline": "node --no-warnings --experimental-strip-types eval/run_eval.ts --baseline-only",
+    "eval": "node --no-warnings --experimental-strip-types eval/run_eval.ts"
   },
   "dependencies": {
     "next": "16.3.3",

@@ -1,6 +1,7 @@
 import { DataSource } from "typeorm";
 import {
   ActionItem,
+  GoogleMeetConnection,
   Meeting,
   NotificationDelivery,
   Organization,
@@ -14,6 +15,7 @@ describe("Postgres entity metadata", () => {
   it("uses concrete database types for every decorated column", async () => {
     const entities = [
       Organization,
+      GoogleMeetConnection,
       User,
       Meeting,
       ActionItem,

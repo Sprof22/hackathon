@@ -172,7 +172,10 @@ export default function Home() {
       </aside>
       <section className="workspace">
         <header className="topbar">
-          <div className="mobile-brand"><span className="brand-mark" aria-hidden="true" />LoopClose</div>
+          <div className="mobile-brand">
+            <span className="brand-mark" aria-hidden="true" />
+            LoopClose
+          </div>
           <label className="search">
             <span>⌕</span>
             <input
@@ -273,7 +276,9 @@ export default function Home() {
                 <div className="item-row" key={item.id}>
                   <div>
                     <span className={`status-dot ${tone(item.status)}`} />
-                    <a className="item-link" href={`/action-items/${item.id}`}>{item.task}</a>
+                    <a className="item-link" href={`/action-items/${item.id}`}>
+                      {item.task}
+                    </a>
                   </div>
                   <div className="owner">
                     <span>

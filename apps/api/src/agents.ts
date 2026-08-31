@@ -4,14 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { In, Repository } from "typeorm";
 import { ActionItem, ItemStatus, Meeting, QaNotification, Reminder, StatusEvent } from "./entities";
 import { classifyTranscript } from "./classifier";
-
-export type ExtractedItem = {
-  task: string;
-  ownerName: string;
-  ownerEmail: string | null;
-  deadline: Date | null;
-  sourceQuote: string;
-};
+import { ExtractedItem, extractCommitmentsRules } from "./commitment-extractor";
 export type Verdict = {
   status: ItemStatus;
   confidence: number | null;
@@ -29,32 +22,7 @@ export class ExtractionService {
         /* deterministic fallback keeps demos runnable */
       }
     }
-    return this.rules(transcript, meetingDate);
-  }
-  private rules(transcript: string, meetingDate: Date) {
-    const lines = transcript
-      .split(/\n|(?<=[.!?])\s+(?=[A-Z])/)
-      .map((v) => v.trim())
-      .filter(Boolean);
-    const patterns = [
-      /^(?:[-*]\s*)?([A-Z][\w'-]+)(?:\s+[A-Z][\w'-]+)?\s*:\s*(?:I(?:'ll| will)|will|to)\s+(.+?)[.!]?$/i,
-      /^(?:[-*]\s*)?([A-Z][\w'-]+)(?:\s+[A-Z][\w'-]+)?\s+(?:said\s+)?(?:I(?:'ll| will)|will|owns|to)\s+(.+?)[.!]?$/i,
-    ];
-    return lines.flatMap((line) => {
-      const match = patterns.map((p) => line.match(p)).find(Boolean);
-      if (!match) return [];
-      const [taskText, deadlineText] = match[2].replace(/[.!]$/, "").split(/\s+by\s+(?=\w)/i);
-      const date = deadlineText ? new Date(deadlineText) : null;
-      return [
-        {
-          task: taskText.replace(/^(finish|complete|handle)\s+/i, ""),
-          ownerName: match[1],
-          ownerEmail: null,
-          deadline: date && !Number.isNaN(date.valueOf()) ? date : null,
-          sourceQuote: line,
-        },
-      ];
-    });
+    return extractCommitmentsRules(transcript);
   }
   private async ollama(transcript: string, meetingDate: Date): Promise<ExtractedItem[]> {
     const response = await fetch(

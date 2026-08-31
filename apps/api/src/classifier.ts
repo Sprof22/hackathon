@@ -23,6 +23,18 @@ export function classifyTranscript(item: ClassifierItem, transcript: string): Cl
     /\b(blocked|stuck|waiting on|can't finish|cannot finish)\b/i.test(line)
   );
   if (blocked) return { status: "blocked", confidence: 0.93, evidenceQuote: blocked };
+  const negatedCompletion = relevant.find((line) =>
+    /\b(?:not|did not|didn't|hasn't|has not|isn't|is not)\b.{0,32}\b(?:done|finished|completed?|shipped|live|resolved|merged)\b/i.test(
+      line
+    )
+  );
+  if (negatedCompletion)
+    return { status: "open", confidence: null, evidenceQuote: negatedCompletion };
+  const ambiguousCompletion = relevant.find((line) =>
+    /\b(ready soon|almost done|nearly done|should be ready|made progress)\b/i.test(line)
+  );
+  if (ambiguousCompletion)
+    return { status: "done", confidence: 0.55, evidenceQuote: ambiguousCompletion };
   const done = relevant.find((line) =>
     /\b(done|finished|completed|shipped|live|resolved|merged)\b/i.test(line)
   );

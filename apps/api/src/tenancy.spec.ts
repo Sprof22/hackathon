@@ -1,6 +1,6 @@
 import { ObjectLiteral, Repository } from "typeorm";
 import { AppController } from "./app.controller";
-import { ExtractionService, ReminderService, VerificationService } from "./agents";
+import { ReminderService } from "./agents";
 import { AuthenticatedUser } from "./auth.guard";
 import {
   ActionItem,
@@ -10,9 +10,9 @@ import {
   QaNotification,
   Reminder,
   Role,
-  User,
 } from "./entities";
 import { NotificationService } from "./notifications";
+import { MeetingIngestionService } from "./meeting-ingestion";
 
 const tenant: AuthenticatedUser = {
   sub: "user-a",
@@ -37,7 +37,6 @@ describe("organization isolation", () => {
     const reminders = repository<Reminder>();
     const qa = repository<QaNotification>();
     const deliveries = repository<NotificationDelivery>();
-    const users = repository<User>();
     items.find.mockResolvedValue([]);
     meetings.count.mockResolvedValue(0);
     qa.find.mockResolvedValue([]);
@@ -47,11 +46,9 @@ describe("organization isolation", () => {
       reminders,
       qa,
       deliveries,
-      users,
-      {} as ExtractionService,
-      {} as VerificationService,
       {} as ReminderService,
-      {} as NotificationService
+      {} as NotificationService,
+      {} as MeetingIngestionService
     );
     await controller.dashboard(tenant);
     expect(items.find).toHaveBeenCalledWith({
@@ -71,7 +68,6 @@ describe("organization isolation", () => {
     const reminders = repository<Reminder>();
     const qa = repository<QaNotification>();
     const deliveries = repository<NotificationDelivery>();
-    const users = repository<User>();
     const item = {
       id: "item-b",
       organizationId: "org-a",
@@ -86,11 +82,9 @@ describe("organization isolation", () => {
       reminders,
       qa,
       deliveries,
-      users,
-      {} as ExtractionService,
-      {} as VerificationService,
       {} as ReminderService,
-      {} as NotificationService
+      {} as NotificationService,
+      {} as MeetingIngestionService
     );
     await controller.ownerEmail(tenant, "item-b", { email: "owner@customer.test" });
     expect(items.findOneByOrFail).toHaveBeenCalledWith({ id: "item-b", organizationId: "org-a" });
@@ -102,7 +96,6 @@ describe("organization isolation", () => {
     const reminders = repository<Reminder>();
     const qa = repository<QaNotification>();
     const deliveries = repository<NotificationDelivery>();
-    const users = repository<User>();
     items.findOneByOrFail.mockResolvedValue({ id: "item-a" } as ActionItem);
     reminders.find.mockResolvedValue([]);
     deliveries.find.mockResolvedValue([]);
@@ -112,16 +105,20 @@ describe("organization isolation", () => {
       reminders,
       qa,
       deliveries,
-      users,
-      {} as ExtractionService,
-      {} as VerificationService,
       {} as ReminderService,
-      {} as NotificationService
+      {} as NotificationService,
+      {} as MeetingIngestionService
     );
     await controller.itemDetail(tenant, "item-a");
     expect(items.findOneByOrFail).toHaveBeenCalledWith({ id: "item-a", organizationId: "org-a" });
-    expect(reminders.find).toHaveBeenCalledWith({ where: { actionItemId: "item-a", organizationId: "org-a" }, order: { createdAt: "DESC" } });
-    expect(deliveries.find).toHaveBeenCalledWith({ where: { actionItemId: "item-a", organizationId: "org-a" }, order: { createdAt: "DESC" } });
+    expect(reminders.find).toHaveBeenCalledWith({
+      where: { actionItemId: "item-a", organizationId: "org-a" },
+      order: { createdAt: "DESC" },
+    });
+    expect(deliveries.find).toHaveBeenCalledWith({
+      where: { actionItemId: "item-a", organizationId: "org-a" },
+      order: { createdAt: "DESC" },
+    });
   });
 
   it("scopes reminder drafting to the authenticated organization", async () => {
@@ -152,15 +149,43 @@ describe("organization isolation", () => {
     const reminders = repository<Reminder>();
     const qa = repository<QaNotification>();
     const deliveries = repository<NotificationDelivery>();
-    const users = repository<User>();
-    const reminder={id:"reminder-a",organizationId:"org-a",actionItemId:"item-a",recipientEmail:"owner@customer.test",subject:"Check in",emailBody:"How is this going?",approved:false} as Reminder;
-    const delivery={id:"delivery-a",status:"captured"} as NotificationDelivery;
-    reminders.findOneByOrFail.mockResolvedValue(reminder);reminders.save.mockResolvedValue(reminder);
-    const notifications={sendEmail:jest.fn().mockResolvedValue(delivery)} as unknown as NotificationService;
-    const controller=new AppController(meetings,items,reminders,qa,deliveries,users,{} as ExtractionService,{} as VerificationService,{} as ReminderService,notifications);
-    await controller.approve(tenant,"reminder-a");
-    expect(reminders.findOneByOrFail).toHaveBeenCalledWith({id:"reminder-a",organizationId:"org-a"});
-    expect(notifications.sendEmail).toHaveBeenCalledWith("owner@customer.test","Check in","How is this going?","org-a",{actionItemId:"item-a",reminderId:"reminder-a"});
+    const reminder = {
+      id: "reminder-a",
+      organizationId: "org-a",
+      actionItemId: "item-a",
+      recipientEmail: "owner@customer.test",
+      subject: "Check in",
+      emailBody: "How is this going?",
+      approved: false,
+    } as Reminder;
+    const delivery = { id: "delivery-a", status: "captured" } as NotificationDelivery;
+    reminders.findOneByOrFail.mockResolvedValue(reminder);
+    reminders.save.mockResolvedValue(reminder);
+    const notifications = {
+      sendEmail: jest.fn().mockResolvedValue(delivery),
+    } as unknown as NotificationService;
+    const controller = new AppController(
+      meetings,
+      items,
+      reminders,
+      qa,
+      deliveries,
+      {} as ReminderService,
+      notifications,
+      {} as MeetingIngestionService
+    );
+    await controller.approve(tenant, "reminder-a");
+    expect(reminders.findOneByOrFail).toHaveBeenCalledWith({
+      id: "reminder-a",
+      organizationId: "org-a",
+    });
+    expect(notifications.sendEmail).toHaveBeenCalledWith(
+      "owner@customer.test",
+      "Check in",
+      "How is this going?",
+      "org-a",
+      { actionItemId: "item-a", reminderId: "reminder-a" }
+    );
     expect(reminder.approvedBy).toBe("user-a");
   });
 });

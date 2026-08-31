@@ -24,4 +24,21 @@ describe("verification confidence gate", () => {
         "Sarah is blocked on the checkout retry fix while waiting on the API team."
       ).status
     ).toBe("blocked"));
+  it("does not mistake a negated completion for done", () => {
+    const result = classifyTranscript(
+      { task: "publish the onboarding brief", ownerName: "Marcus" },
+      "Marcus said the onboarding work is moving along, but did not claim it was complete."
+    );
+    expect(result.status).toBe("open");
+    expect(result.evidenceQuote).toContain("did not claim");
+  });
+  it("routes ambiguous progress language below the autonomous threshold", () => {
+    const result = classifyTranscript(
+      { task: "finalize the pricing model", ownerName: "Amina" },
+      "Amina: We made progress on pricing and it should be ready soon."
+    );
+    expect(result.status).toBe("done");
+    expect(result.confidence).toBeLessThan(0.86);
+    expect(result.evidenceQuote).toContain("ready soon");
+  });
 });
