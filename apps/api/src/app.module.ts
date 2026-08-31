@@ -1,82 +1,29 @@
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { JwtModule } from "@nestjs/jwt";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { AuthController, AuthService } from "./auth";
+import { ConfigModule } from "@nestjs/config";
+import { ActionItemsModule } from "./action-items/action-items.module";
 import { AppController } from "./app.controller";
-import { ExtractionService, ReminderService, VerificationService } from "./agents";
-import {
-  ActionItem,
-  GoogleMeetConnection,
-  Meeting,
-  NotificationDelivery,
-  Organization,
-  QaNotification,
-  Reminder,
-  StatusEvent,
-  User,
-} from "./entities";
-import { NotificationService } from "./notifications";
-import { JwtAuthGuard } from "./auth.guard";
-import { OrganizationBootstrapService, OrganizationController } from "./organizations";
-import { AddOrganizationTenancy1788165000000 } from "./organization.migration";
-import { AddDeliveryContext1788169000000 } from "./delivery-context.migration";
-import { AddGoogleMeetConnection1788179000000 } from "./google-meet.migration";
-import { GoogleMeetController, GoogleMeetService } from "./google-meet";
-import { MeetingIngestionService } from "./meeting-ingestion";
+import { AuthModule } from "./auth/auth.module";
+import { DashboardModule } from "./dashboard/dashboard.module";
+import { DatabaseModule } from "./database/database.module";
+import { GoogleMeetModule } from "./integrations/google-meet/google-meet.module";
+import { MeetingsModule } from "./meetings/meetings.module";
+import { NotificationsModule } from "./notifications/notifications.module";
+import { OrganizationsModule } from "./organizations/organizations.module";
+import { RemindersModule } from "./reminders/reminders.module";
 
-const entities = [
-  Organization,
-  GoogleMeetConnection,
-  User,
-  Meeting,
-  ActionItem,
-  StatusEvent,
-  Reminder,
-  QaNotification,
-  NotificationDelivery,
-];
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: "postgres",
-        url: config.getOrThrow("DATABASE_URL"),
-        entities,
-        migrations: [
-          AddOrganizationTenancy1788165000000,
-          AddDeliveryContext1788169000000,
-          AddGoogleMeetConnection1788179000000,
-        ],
-        migrationsRun: true,
-        synchronize: config.get("DB_SYNCHRONIZE", "false") === "true",
-        ssl: { rejectUnauthorized: false },
-      }),
-    }),
-    TypeOrmModule.forFeature(entities),
-    JwtModule.registerAsync({
-      global: true,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get("JWT_SECRET", "dev-only-change-me"),
-        signOptions: { expiresIn: "12h" },
-      }),
-    }),
+    DatabaseModule,
+    AuthModule,
+    OrganizationsModule,
+    DashboardModule,
+    MeetingsModule,
+    ActionItemsModule,
+    RemindersModule,
+    NotificationsModule,
+    GoogleMeetModule,
   ],
-  controllers: [AppController, AuthController, OrganizationController, GoogleMeetController],
-  providers: [
-    AuthService,
-    ExtractionService,
-    VerificationService,
-    ReminderService,
-    NotificationService,
-    OrganizationBootstrapService,
-    MeetingIngestionService,
-    GoogleMeetService,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-  ],
+  controllers: [AppController],
 })
 export class AppModule {}

@@ -1,4 +1,4 @@
-import { formatMeetTranscript } from "./google-meet";
+import { formatMeetTranscript } from "./google-meet.service";
 
 describe("Google Meet transcript formatting", () => {
   it("orders entries and attributes speech to participant display names", () => {

@@ -1,23 +1,13 @@
-import { Body, Controller, Injectable, Post, UnauthorizedException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { IsEmail, IsString, MinLength } from "class-validator";
-import { compare, hash } from "bcrypt";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { DataSource, Repository } from "typeorm";
+import { InjectRepository } from "@nestjs/typeorm";
+import { compare, hash } from "bcrypt";
 import { randomUUID } from "node:crypto";
-import { Organization, Role, User } from "./entities";
-import { Public } from "./auth.guard";
-
-class RegisterDto {
-  @IsString() @MinLength(2) name!: string;
-  @IsString() @MinLength(2) organizationName!: string;
-  @IsEmail() email!: string;
-  @IsString() @MinLength(8) password!: string;
-}
-class LoginDto {
-  @IsEmail() email!: string;
-  @IsString() password!: string;
-}
+import { DataSource, Repository } from "typeorm";
+import { Organization } from "../organizations/entities/organization.entity";
+import { LoginDto } from "./dto/login.dto";
+import { RegisterDto } from "./dto/register.dto";
+import { Role, User } from "./entities/user.entity";
 
 @Injectable()
 export class AuthService {
@@ -26,6 +16,7 @@ export class AuthService {
     private dataSource: DataSource,
     private jwt: JwtService
   ) {}
+
   async register(dto: RegisterDto) {
     const exists = await this.users.findOneBy({ email: dto.email.toLowerCase() });
     if (exists) throw new UnauthorizedException("An account with that email already exists");
@@ -57,6 +48,7 @@ export class AuthService {
       return this.issue(user);
     });
   }
+
   async login(dto: LoginDto) {
     const user = await this.users
       .createQueryBuilder("u")
@@ -67,6 +59,7 @@ export class AuthService {
       throw new UnauthorizedException("Invalid email or password");
     return this.issue(user);
   }
+
   private issue(user: User) {
     if (!user.organizationId)
       throw new UnauthorizedException("Account is not assigned to an organization");
@@ -85,17 +78,5 @@ export class AuthService {
         organizationId: user.organizationId,
       },
     };
-  }
-}
-
-@Controller("auth")
-@Public()
-export class AuthController {
-  constructor(private auth: AuthService) {}
-  @Post("register") register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
-  }
-  @Post("login") login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
   }
 }

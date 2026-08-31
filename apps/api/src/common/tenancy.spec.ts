@@ -1,18 +1,16 @@
 import { ObjectLiteral, Repository } from "typeorm";
-import { AppController } from "./app.controller";
-import { ReminderService } from "./agents";
-import { AuthenticatedUser } from "./auth.guard";
-import {
-  ActionItem,
-  ItemStatus,
-  Meeting,
-  NotificationDelivery,
-  QaNotification,
-  Reminder,
-  Role,
-} from "./entities";
-import { NotificationService } from "./notifications";
-import { MeetingIngestionService } from "./meeting-ingestion";
+import { ActionItemsController } from "../action-items/action-items.controller";
+import { ActionItem, ItemStatus } from "../action-items/entities/action-item.entity";
+import { Role } from "../auth/entities/user.entity";
+import { DashboardController } from "../dashboard/dashboard.controller";
+import { Meeting } from "../meetings/entities/meeting.entity";
+import { NotificationDelivery } from "../notifications/entities/notification-delivery.entity";
+import { QaNotification } from "../notifications/entities/qa-notification.entity";
+import { NotificationService } from "../notifications/notification.service";
+import { Reminder } from "../reminders/entities/reminder.entity";
+import { ReminderService } from "../reminders/reminder.service";
+import { RemindersController } from "../reminders/reminders.controller";
+import { AuthenticatedUser } from "./auth/authenticated-user";
 
 const tenant: AuthenticatedUser = {
   sub: "user-a",
@@ -20,6 +18,7 @@ const tenant: AuthenticatedUser = {
   role: Role.OWNER,
   organizationId: "org-a",
 };
+
 const repository = <T extends ObjectLiteral>() =>
   ({
     find: jest.fn(),
@@ -34,23 +33,14 @@ describe("organization isolation", () => {
   it("scopes dashboard reads to the authenticated organization", async () => {
     const meetings = repository<Meeting>();
     const items = repository<ActionItem>();
-    const reminders = repository<Reminder>();
     const qa = repository<QaNotification>();
-    const deliveries = repository<NotificationDelivery>();
     items.find.mockResolvedValue([]);
     meetings.count.mockResolvedValue(0);
     qa.find.mockResolvedValue([]);
-    const controller = new AppController(
-      meetings,
-      items,
-      reminders,
-      qa,
-      deliveries,
-      {} as ReminderService,
-      {} as NotificationService,
-      {} as MeetingIngestionService
-    );
+    const controller = new DashboardController(meetings, items, qa);
+
     await controller.dashboard(tenant);
+
     expect(items.find).toHaveBeenCalledWith({
       where: { organizationId: "org-a" },
       order: { createdAt: "DESC" },
@@ -63,10 +53,8 @@ describe("organization isolation", () => {
   });
 
   it("scopes direct record updates to the authenticated organization", async () => {
-    const meetings = repository<Meeting>();
     const items = repository<ActionItem>();
     const reminders = repository<Reminder>();
-    const qa = repository<QaNotification>();
     const deliveries = repository<NotificationDelivery>();
     const item = {
       id: "item-b",
@@ -76,40 +64,34 @@ describe("organization isolation", () => {
     } as ActionItem;
     items.findOneByOrFail.mockResolvedValue(item);
     items.save.mockResolvedValue(item);
-    const controller = new AppController(
-      meetings,
+    const controller = new ActionItemsController(
       items,
       reminders,
-      qa,
       deliveries,
-      {} as ReminderService,
-      {} as NotificationService,
-      {} as MeetingIngestionService
+      {} as ReminderService
     );
-    await controller.ownerEmail(tenant, "item-b", { email: "owner@customer.test" });
+
+    await controller.updateOwnerEmail(tenant, "item-b", { email: "owner@customer.test" });
+
     expect(items.findOneByOrFail).toHaveBeenCalledWith({ id: "item-b", organizationId: "org-a" });
   });
 
   it("scopes action-item details and delivery history to the authenticated organization", async () => {
-    const meetings = repository<Meeting>();
     const items = repository<ActionItem>();
     const reminders = repository<Reminder>();
-    const qa = repository<QaNotification>();
     const deliveries = repository<NotificationDelivery>();
     items.findOneByOrFail.mockResolvedValue({ id: "item-a" } as ActionItem);
     reminders.find.mockResolvedValue([]);
     deliveries.find.mockResolvedValue([]);
-    const controller = new AppController(
-      meetings,
+    const controller = new ActionItemsController(
       items,
       reminders,
-      qa,
       deliveries,
-      {} as ReminderService,
-      {} as NotificationService,
-      {} as MeetingIngestionService
+      {} as ReminderService
     );
-    await controller.itemDetail(tenant, "item-a");
+
+    await controller.detail(tenant, "item-a");
+
     expect(items.findOneByOrFail).toHaveBeenCalledWith({ id: "item-a", organizationId: "org-a" });
     expect(reminders.find).toHaveBeenCalledWith({
       where: { actionItemId: "item-a", organizationId: "org-a" },
@@ -136,7 +118,9 @@ describe("organization isolation", () => {
     reminders.create.mockReturnValue({} as Reminder);
     reminders.save.mockResolvedValue({} as Reminder);
     const service = new ReminderService(reminders, items);
+
     await service.draft("item-a", "org-a");
+
     expect(items.findOneByOrFail).toHaveBeenCalledWith({ id: "item-a", organizationId: "org-a" });
     expect(reminders.create).toHaveBeenCalledWith(
       expect.objectContaining({ organizationId: "org-a", actionItemId: "item-a" })
@@ -144,11 +128,7 @@ describe("organization isolation", () => {
   });
 
   it("links an approved delivery to the scoped reminder and action item", async () => {
-    const meetings = repository<Meeting>();
-    const items = repository<ActionItem>();
     const reminders = repository<Reminder>();
-    const qa = repository<QaNotification>();
-    const deliveries = repository<NotificationDelivery>();
     const reminder = {
       id: "reminder-a",
       organizationId: "org-a",
@@ -164,17 +144,10 @@ describe("organization isolation", () => {
     const notifications = {
       sendEmail: jest.fn().mockResolvedValue(delivery),
     } as unknown as NotificationService;
-    const controller = new AppController(
-      meetings,
-      items,
-      reminders,
-      qa,
-      deliveries,
-      {} as ReminderService,
-      notifications,
-      {} as MeetingIngestionService
-    );
+    const controller = new RemindersController(reminders, notifications);
+
     await controller.approve(tenant, "reminder-a");
+
     expect(reminders.findOneByOrFail).toHaveBeenCalledWith({
       id: "reminder-a",
       organizationId: "org-a",

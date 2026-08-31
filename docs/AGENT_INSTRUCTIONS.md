@@ -23,7 +23,7 @@ Every agent must:
 
 > Extract only an explicit future commitment attributable to a named speaker. Preserve the exact source sentence. Return the task, owner name, optional owner email, optional deadline, and source quote. Do not turn discussion, aspiration, passive ownership, or an unattributed sentence into a commitment.
 
-**Deterministic implementation:** `apps/api/src/commitment-extractor.ts` accepts forms such as `Sarah: I'll ship…` and rejects ordinary discussion. It removes a narrow set of leading task verbs but keeps the complete source quote.
+**Deterministic implementation:** `apps/api/src/action-items/commitment-extractor.ts` accepts forms such as `Sarah: I'll ship…` and rejects ordinary discussion. It removes a narrow set of leading task verbs but keeps the complete source quote.
 
 **Optional Ollama system instruction (verbatim from the implementation):**
 

@@ -47,7 +47,7 @@ The product agents, their exact operational instructions, allowed tools, and bou
 ## Architecture
 
 - **Web:** Next.js 16 and React 19 at the repository root.
-- **API:** NestJS in `apps/api`, deployed independently as a Vercel function.
+- **API:** A feature-oriented NestJS modular monolith in [`apps/api`](./apps/api), deployed independently as a Vercel function. Its [backend structure guide](./apps/api/README.md) maps each capability to its module, controller, service, DTOs, entities, and tests.
 - **Database:** PostgreSQL/Neon through TypeORM.
 - **Default reasoning:** Free deterministic rules; optional local Ollama extraction.
 - **Email:** Database capture by default; optional SMTP after approval.

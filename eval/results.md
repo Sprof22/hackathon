@@ -2,23 +2,23 @@
 
 Generated deterministically from the six checked-in synthetic commitments and their follow-up meetings. The baseline reads only the latest transcript and applies status keywords. LoopClose persists the initial commitments, requires attributable evidence, handles negation, applies a confidence threshold, and routes ambiguous completion language to review.
 
-| Metric | Stateless baseline | LoopClose |
-| --- | ---: | ---: |
-| Initial commitments recovered | not retained | 6/6 (100.0%) |
-| Correct final outcomes | 3/6 (50.0%) | 6/6 (100.0%) |
-| Unsafe false closes | 2 | 0 |
-| Missing final outcomes | 1 | 0 |
+| Metric                        | Stateless baseline |    LoopClose |
+| ----------------------------- | -----------------: | -----------: |
+| Initial commitments recovered |       not retained | 6/6 (100.0%) |
+| Correct final outcomes        |        3/6 (50.0%) | 6/6 (100.0%) |
+| Unsafe false closes           |                  2 |            0 |
+| Missing final outcomes        |                  1 |            0 |
 
 ## Per-item evidence
 
-| Series | Owner | Expected | Baseline | LoopClose |
-| --- | --- | --- | --- | --- |
-| series-1 | Sarah | done | done | done |
-| series-1 | Marcus | open | done | open |
-| series-2 | Priya | blocked | blocked | blocked |
-| series-2 | Jon | done | done | done |
-| series-3 | Amina | needs_review | done | needs_review |
-| series-3 | Diego | open | missing | open |
+| Series   | Owner  | Expected     | Baseline | LoopClose    |
+| -------- | ------ | ------------ | -------- | ------------ |
+| series-1 | Sarah  | done         | done     | done         |
+| series-1 | Marcus | open         | done     | open         |
+| series-2 | Priya  | blocked      | blocked  | blocked      |
+| series-2 | Jon    | done         | done     | done         |
+| series-3 | Amina  | needs_review | done     | needs_review |
+| series-3 | Diego  | open         | missing  | open         |
 
 ## Safety cases covered
 

@@ -1,15 +1,13 @@
 import { DataSource } from "typeorm";
-import {
-  ActionItem,
-  GoogleMeetConnection,
-  Meeting,
-  NotificationDelivery,
-  Organization,
-  QaNotification,
-  Reminder,
-  StatusEvent,
-  User,
-} from "./entities";
+import { ActionItem } from "../action-items/entities/action-item.entity";
+import { StatusEvent } from "../action-items/entities/status-event.entity";
+import { User } from "../auth/entities/user.entity";
+import { GoogleMeetConnection } from "../integrations/google-meet/entities/google-meet-connection.entity";
+import { Meeting } from "../meetings/entities/meeting.entity";
+import { NotificationDelivery } from "../notifications/entities/notification-delivery.entity";
+import { QaNotification } from "../notifications/entities/qa-notification.entity";
+import { Organization } from "../organizations/entities/organization.entity";
+import { Reminder } from "../reminders/entities/reminder.entity";
 
 describe("Postgres entity metadata", () => {
   it("uses concrete database types for every decorated column", async () => {

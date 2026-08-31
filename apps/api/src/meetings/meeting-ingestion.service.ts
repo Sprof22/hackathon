@@ -1,16 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { ExtractionService, ReminderService, VerificationService } from "./agents";
-import { AuthenticatedUser } from "./auth.guard";
-import { ActionItem, Meeting, Role, User } from "./entities";
-import { NotificationService } from "./notifications";
-
-export type MeetingInput = {
-  title: string;
-  meetingDate: string;
-  transcript: string;
-};
+import { ActionItem } from "../action-items/entities/action-item.entity";
+import { ExtractionService } from "../action-items/extraction.service";
+import { VerificationService } from "../action-items/verification.service";
+import { Role, User } from "../auth/entities/user.entity";
+import { AuthenticatedUser } from "../common/auth/authenticated-user";
+import { NotificationService } from "../notifications/notification.service";
+import { ReminderService } from "../reminders/reminder.service";
+import { CreateMeetingDto } from "./dto/create-meeting.dto";
+import { Meeting } from "./entities/meeting.entity";
 
 @Injectable()
 export class MeetingIngestionService {
@@ -24,7 +23,7 @@ export class MeetingIngestionService {
     private notifications: NotificationService
   ) {}
 
-  async process(user: AuthenticatedUser, input: MeetingInput) {
+  async process(user: AuthenticatedUser, input: CreateMeetingDto) {
     const organizationId = user.organizationId;
     const meeting = await this.meetings.save(
       this.meetings.create({

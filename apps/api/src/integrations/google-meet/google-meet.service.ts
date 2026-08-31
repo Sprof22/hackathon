@@ -1,15 +1,9 @@
 import {
   BadGatewayException,
   ConflictException,
-  Controller,
-  Delete,
   ForbiddenException,
-  Get,
   Injectable,
   NotFoundException,
-  Post,
-  Query,
-  Res,
   ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -18,9 +12,10 @@ import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { Repository } from "typeorm";
-import { AuthenticatedUser, CurrentUser, Public } from "./auth.guard";
-import { GoogleMeetConnection, Role } from "./entities";
-import { MeetingIngestionService } from "./meeting-ingestion";
+import { Role } from "../../auth/entities/user.entity";
+import { AuthenticatedUser } from "../../common/auth/authenticated-user";
+import { MeetingIngestionService } from "../../meetings/meeting-ingestion.service";
+import { GoogleMeetConnection } from "./entities/google-meet-connection.entity";
 
 const MEET_SCOPE = "https://www.googleapis.com/auth/meetings.space.readonly";
 const MEET_API = "https://meet.googleapis.com/v2";
@@ -49,7 +44,6 @@ type Participant = {
   anonymousUser?: { displayName: string };
   phoneUser?: { displayName: string };
 };
-type RedirectResponse = { redirect(status: number, url: string): void };
 
 export function formatMeetTranscript(
   entries: TranscriptEntry[],
@@ -339,60 +333,5 @@ export class GoogleMeetService {
         "Stored Google credentials could not be read. Please reconnect."
       );
     }
-  }
-}
-
-@Controller("integrations/google-meet")
-export class GoogleMeetController {
-  constructor(
-    private googleMeet: GoogleMeetService,
-    private config: ConfigService
-  ) {}
-
-  @Get("status")
-  status(@CurrentUser() user: AuthenticatedUser) {
-    return this.googleMeet.status(user.organizationId);
-  }
-
-  @Get("auth-url")
-  authUrl(@CurrentUser() user: AuthenticatedUser) {
-    return { url: this.googleMeet.authorizationUrl(user) };
-  }
-
-  @Get("callback")
-  @Public()
-  async callback(
-    @Query("code") code: string | undefined,
-    @Query("state") state: string | undefined,
-    @Query("error") oauthError: string | undefined,
-    @Res() response: RedirectResponse
-  ) {
-    const webOrigin = (this.config.get("WEB_ORIGIN", "http://localhost:3000") as string)
-      .split(",")[0]
-      .replace(/\/$/, "");
-    if (oauthError || !code || !state) {
-      response.redirect(302, `${webOrigin}/organization?googleMeet=cancelled`);
-      return;
-    }
-    try {
-      await this.googleMeet.connect(code, state);
-      response.redirect(302, `${webOrigin}/organization?googleMeet=connected`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Google connection failed";
-      response.redirect(
-        302,
-        `${webOrigin}/organization?googleMeet=error&message=${encodeURIComponent(message)}`
-      );
-    }
-  }
-
-  @Post("import-latest")
-  importLatest(@CurrentUser() user: AuthenticatedUser) {
-    return this.googleMeet.importLatest(user);
-  }
-
-  @Delete()
-  disconnect(@CurrentUser() user: AuthenticatedUser) {
-    return this.googleMeet.disconnect(user);
   }
 }

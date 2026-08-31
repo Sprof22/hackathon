@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { extractCommitmentsRules } from "../apps/api/src/commitment-extractor.ts";
-import { classifyTranscript } from "../apps/api/src/classifier.ts";
+import prettier from "prettier";
+import { extractCommitmentsRules } from "../apps/api/src/action-items/commitment-extractor.ts";
+import { classifyTranscript } from "../apps/api/src/action-items/classifier.ts";
 
 type Outcome = "open" | "done" | "blocked" | "needs_review";
 type GroundItem = { task: string; owner: string; outcome: Outcome };
@@ -136,7 +137,8 @@ if (process.argv.includes("--baseline-only")) {
     `Stateless baseline: ${baselineCorrect}/${details.length} correct outcomes (${percent(baselineCorrect, details.length)}), ${baselineUnsafeCloses} unsafe false closes, ${details.filter((row) => row.baseline === "missing").length} missing outcomes.`
   );
 } else {
-  fs.writeFileSync(path.join(root, "eval/results.md"), results);
+  const formattedResults = await prettier.format(results, { parser: "markdown" });
+  fs.writeFileSync(path.join(root, "eval/results.md"), formattedResults);
   console.log(
     `Evaluated ${details.length} outcomes: baseline ${baselineCorrect}/${details.length}, LoopClose ${loopCloseCorrect}/${details.length}; wrote eval/results.md`
   );

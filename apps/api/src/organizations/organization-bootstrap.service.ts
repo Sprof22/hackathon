@@ -1,33 +1,14 @@
-import {
-  Body,
-  Controller,
-  ForbiddenException,
-  Get,
-  Injectable,
-  OnApplicationBootstrap,
-  Patch,
-} from "@nestjs/common";
+import { Injectable, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { IsString, MinLength } from "class-validator";
 import { Repository } from "typeorm";
-import { CurrentUser, AuthenticatedUser } from "./auth.guard";
-import {
-  ActionItem,
-  Meeting,
-  NotificationDelivery,
-  Organization,
-  QaNotification,
-  Reminder,
-  Role,
-  StatusEvent,
-  User,
-} from "./entities";
-
-class UpdateOrganizationDto {
-  @IsString()
-  @MinLength(2)
-  name!: string;
-}
+import { ActionItem } from "../action-items/entities/action-item.entity";
+import { StatusEvent } from "../action-items/entities/status-event.entity";
+import { Role, User } from "../auth/entities/user.entity";
+import { Meeting } from "../meetings/entities/meeting.entity";
+import { NotificationDelivery } from "../notifications/entities/notification-delivery.entity";
+import { QaNotification } from "../notifications/entities/qa-notification.entity";
+import { Reminder } from "../reminders/entities/reminder.entity";
+import { Organization } from "./entities/organization.entity";
 
 @Injectable()
 export class OrganizationBootstrapService implements OnApplicationBootstrap {
@@ -83,35 +64,5 @@ export class OrganizationBootstrapService implements OnApplicationBootstrap {
         await this.users.save(firstUser);
       }
     }
-  }
-}
-
-@Controller("organization")
-export class OrganizationController {
-  constructor(
-    @InjectRepository(Organization) private organizations: Repository<Organization>,
-    @InjectRepository(User) private users: Repository<User>
-  ) {}
-
-  @Get()
-  current(@CurrentUser() user: AuthenticatedUser) {
-    return this.organizations.findOneByOrFail({ id: user.organizationId });
-  }
-
-  @Get("members")
-  members(@CurrentUser() user: AuthenticatedUser) {
-    return this.users.find({
-      where: { organizationId: user.organizationId },
-      order: { createdAt: "ASC" },
-    });
-  }
-
-  @Patch()
-  async update(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateOrganizationDto) {
-    if (user.role !== Role.OWNER)
-      throw new ForbiddenException("Only an organization owner can update the workspace");
-    const organization = await this.organizations.findOneByOrFail({ id: user.organizationId });
-    organization.name = dto.name.trim();
-    return this.organizations.save(organization);
   }
 }

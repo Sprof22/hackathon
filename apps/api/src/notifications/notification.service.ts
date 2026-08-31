@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
 import { ConfigService } from "@nestjs/config";
+import { InjectRepository } from "@nestjs/typeorm";
 import nodemailer from "nodemailer";
 import { Repository } from "typeorm";
-import { NotificationDelivery } from "./entities";
+import { NotificationDelivery } from "./entities/notification-delivery.entity";
 
 @Injectable()
 export class NotificationService {
@@ -11,6 +11,7 @@ export class NotificationService {
     private config: ConfigService,
     @InjectRepository(NotificationDelivery) private deliveries: Repository<NotificationDelivery>
   ) {}
+
   async sendEmail(
     to: string,
     subject: string,
