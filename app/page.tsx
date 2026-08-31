@@ -130,7 +130,7 @@ export default function Home() {
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">L</span>
+          <span className="brand-mark" aria-hidden="true" />
           <span>LoopClose</span>
         </div>
         <div className="workspace-label">
@@ -172,7 +172,7 @@ export default function Home() {
       </aside>
       <section className="workspace">
         <header className="topbar">
-          <div className="mobile-brand">LoopClose</div>
+          <div className="mobile-brand"><span className="brand-mark" aria-hidden="true" />LoopClose</div>
           <label className="search">
             <span>⌕</span>
             <input

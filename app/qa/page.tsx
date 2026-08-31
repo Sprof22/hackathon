@@ -23,7 +23,8 @@ export default function QA() {
       <div className="flow-wrap">
         <nav className="flow-nav">
           <a className="flow-brand" href="/">
-            LoopClose
+            <span className="brand-mark" aria-hidden="true" />
+            <span>LoopClose</span>
           </a>
           <a href="/">← Dashboard</a>
         </nav>

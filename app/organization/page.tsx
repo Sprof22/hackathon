@@ -64,7 +64,7 @@ export default function OrganizationPage() {
       <div className="flow-wrap">
         <nav className="flow-nav">
           <a className="flow-brand" href="/">
-            <span className="brand-mark">L</span>
+            <span className="brand-mark" aria-hidden="true" />
             <span>LoopClose</span>
           </a>
           <a href="/">← Dashboard</a>
