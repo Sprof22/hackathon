@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { api } from "../../lib/api";
 
 type ItemStatus = "open" | "done" | "blocked" | "needs_review" | "stale";
@@ -65,7 +66,7 @@ export default function ActionItemDetail() {
   const [message, setMessage] = useState("Loading action item…");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState("");
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const data = await api<Detail>(`/action-items/${id}`);
       setDetail(data);
@@ -75,10 +76,11 @@ export default function ActionItemDetail() {
       setError(true);
       setMessage(reason instanceof Error ? reason.message : "Could not load this action item");
     }
-  }
-  useEffect(() => {
-    load();
   }, [id]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
   async function saveOwner(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy("owner");
@@ -134,13 +136,13 @@ export default function ActionItemDetail() {
     <main className="flow-page action-detail-page">
       <div className="flow-wrap action-detail-wrap">
         <nav className="flow-nav">
-          <a className="flow-brand" href="/">
+          <Link className="flow-brand" href="/">
             <span className="brand-mark" aria-hidden="true" />
             <span>LoopClose</span>
-          </a>
+          </Link>
           <div className="detail-nav-actions">
             <a href="/approvals">Approval queue</a>
-            <a href="/">← Dashboard</a>
+            <Link href="/">← Dashboard</Link>
           </div>
         </nav>
         {!detail ? (

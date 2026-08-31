@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "../lib/api";
 type Reminder = { id: string; subject: string; recipientEmail: string; emailBody: string };
 export default function Approvals() {
@@ -15,7 +16,8 @@ export default function Approvals() {
     }
   }
   useEffect(() => {
-    load();
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
   }, []);
   async function approve(id: string) {
     await api(`/approvals/${id}/approve`, { method: "POST" });
@@ -26,11 +28,11 @@ export default function Approvals() {
     <main className="flow-page">
       <div className="flow-wrap">
         <nav className="flow-nav">
-          <a className="flow-brand" href="/">
+          <Link className="flow-brand" href="/">
             <span className="brand-mark" aria-hidden="true" />
             <span>LoopClose</span>
-          </a>
-          <a href="/">← Dashboard</a>
+          </Link>
+          <Link href="/">← Dashboard</Link>
         </nav>
         <div className="flow-heading">
           <h1>Reminder approvals</h1>

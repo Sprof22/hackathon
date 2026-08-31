@@ -1,5 +1,6 @@
 "use client";
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { api } from "../../lib/api";
 
 export default function NewMeeting() {
@@ -29,11 +30,11 @@ export default function NewMeeting() {
     <main className="flow-page">
       <div className="flow-wrap">
         <nav className="flow-nav">
-          <a className="flow-brand" href="/">
+          <Link className="flow-brand" href="/">
             <span className="brand-mark" aria-hidden="true" />
             <span>LoopClose</span>
-          </a>
-          <a href="/">← Dashboard</a>
+          </Link>
+          <Link href="/">← Dashboard</Link>
         </nav>
         <div className="flow-heading">
           <h1>Process a meeting</h1>

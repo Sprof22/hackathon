@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api } from "./lib/api";
 
 type ItemStatus = "open" | "done" | "blocked" | "needs_review" | "stale";
@@ -72,33 +74,37 @@ function readSessionUser(): SessionUser {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [user, setUser] = useState<SessionUser>({});
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
-    if (!localStorage.getItem("loopclose_token")) {
-      location.replace("/login");
-      return;
-    }
-    setUser(readSessionUser());
-    Promise.all([api<Dashboard>("/dashboard"), api<Organization>("/organization")])
-      .then(([data, workspace]) => {
-        setDashboard(data);
-        setOrganization(workspace);
-      })
-      .catch((reason: unknown) => {
-        const message = reason instanceof Error ? reason.message : "Could not load live data";
-        if (/sign in|session|unauthorized/i.test(message)) {
-          localStorage.removeItem("loopclose_token");
-          localStorage.removeItem("loopclose_user");
-          location.replace("/login");
-          return;
-        }
-        setError(message);
-      });
-  }, []);
+    const timer = window.setTimeout(() => {
+      if (!localStorage.getItem("loopclose_token")) {
+        router.replace("/login");
+        return;
+      }
+      setUser(readSessionUser());
+      Promise.all([api<Dashboard>("/dashboard"), api<Organization>("/organization")])
+        .then(([data, workspace]) => {
+          setDashboard(data);
+          setOrganization(workspace);
+        })
+        .catch((reason: unknown) => {
+          const message = reason instanceof Error ? reason.message : "Could not load live data";
+          if (/sign in|session|unauthorized/i.test(message)) {
+            localStorage.removeItem("loopclose_token");
+            localStorage.removeItem("loopclose_user");
+            router.replace("/login");
+            return;
+          }
+          setError(message);
+        });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [router]);
   const items = useMemo(() => {
     const all = dashboard?.items ?? [];
     const needle = query.trim().toLowerCase();
@@ -124,7 +130,7 @@ export default function Home() {
   function signOut() {
     localStorage.removeItem("loopclose_token");
     localStorage.removeItem("loopclose_user");
-    location.href = "/login";
+    router.push("/login");
   }
   return (
     <main className="app-shell">
@@ -138,9 +144,9 @@ export default function Home() {
           <strong>{organization?.name || "Loading…"}</strong>
         </div>
         <nav aria-label="Main navigation">
-          <a className="nav-link active" href="/">
+          <Link className="nav-link active" href="/">
             <span>⌂</span> Overview
-          </a>
+          </Link>
           <a className="nav-link" href="#items">
             <span>✓</span> Action items <b>{dashboard?.metrics.open ?? "—"}</b>
           </a>

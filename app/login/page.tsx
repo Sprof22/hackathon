@@ -1,9 +1,12 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api } from "../lib/api";
 
 export default function Login() {
+  const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,7 +30,7 @@ export default function Login() {
       }>(`/auth/${mode}`, { method: "POST", body: JSON.stringify(values) });
       localStorage.setItem("loopclose_token", result.accessToken);
       localStorage.setItem("loopclose_user", JSON.stringify(result.user));
-      location.href = "/";
+      router.push("/");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not sign in");
     } finally {
@@ -39,10 +42,10 @@ export default function Login() {
     <main className="auth-page">
       <section className="auth-visual" aria-label="A product team reviewing meeting commitments">
         <div className="auth-visual-content">
-          <a className="auth-visual-brand" href="/">
+          <Link className="auth-visual-brand" href="/">
             <span className="brand-mark" aria-hidden="true" />
             <span>LoopClose</span>
-          </a>
+          </Link>
           <div className="auth-visual-copy">
             <span className="auth-kicker">MEETINGS THAT MOVE WORK FORWARD</span>
             <h2>Turn every commitment into a verified outcome.</h2>
@@ -60,10 +63,10 @@ export default function Login() {
       <section className="auth-form-side">
         <div className="auth-wrap">
           <nav className="flow-nav auth-nav">
-            <a className="flow-brand auth-form-brand" href="/">
+            <Link className="flow-brand auth-form-brand" href="/">
               <span className="brand-mark" aria-hidden="true" />
               <span>LoopClose</span>
-            </a>
+            </Link>
             <button className="auth-nav-action" type="button" onClick={switchMode}>
               {mode === "login" ? "Create account" : "Sign in"}
             </button>
